@@ -156,31 +156,63 @@ strict-peer-dependencies=false
 
 ## Build & Test Commands
 
-### Without Bazel (pnpm + ng CLI)
+### Automated Tests
+
+```bash
+# Run ALL tests (recommended)
+pnpm test
+
+# Run only structure verification (15 tests)
+pnpm test:structure
+
+# Run only runtime version tests (12 tests)
+pnpm test:runtime
+```
+
+**What `pnpm test` verifies:**
+
+1. **Structure Tests** (`scripts/verify-pnpm-structure.js`)
+   - pnpm uses isolated linker
+   - lib-a has `dependenciesMeta.injected` for lib-b
+   - lib-c does NOT have injection (uses symlink)
+   - All symlinks/paths exist
+   - Correct lodash versions in package.json
+   - Peer dependencies configured correctly
+   - Lockfile records injection metadata
+
+2. **Runtime Tests** (`scripts/verify-runtime-versions.js`)
+   - Each package loads its own lodash version
+   - 4 unique lodash versions across packages
+   - rxjs peer dependency is shared
+   - Library exports work correctly
+   - Cross-library access works
+
+### Manual Build Commands
 
 ```bash
 # Install dependencies
 pnpm install
 
-# Build libraries (required before apps)
-pnpm --filter @myorg/lib-b exec tsc --project tsconfig.json
-pnpm --filter @myorg/lib-a exec tsc --project tsconfig.json
-pnpm --filter @myorg/lib-c exec tsc --project tsconfig.json
+# Build libraries
+pnpm build:libs
 
 # Build Angular apps
-pnpm --filter @myorg/app-latest exec ng build --configuration=development
-pnpm --filter @myorg/app-v16 exec ng build --configuration=development
-pnpm --filter @myorg/app-v14 exec ng build --configuration=development
+pnpm build:app-latest
+pnpm build:app-v16
+pnpm build:app-v14
+
+# Build all apps
+pnpm build:apps
 ```
 
 ### With Bazel (TODO)
 
 ```bash
 # Build all
-bazel build //...
+pnpm bazel:build
 
-# Build specific app
-bazel build //apps/app-latest:build
+# Test all
+pnpm bazel:test
 ```
 
 ---
@@ -230,3 +262,7 @@ All tests passed: true
 | `pnpm-workspace.yaml` | Workspace package locations |
 | `libs/*/package.json` | Library configs with version specs |
 | `apps/*/angular.json` | Angular builder configuration |
+| `scripts/test-all.js` | Main test runner |
+| `scripts/verify-pnpm-structure.js` | pnpm structure tests (15 tests) |
+| `scripts/verify-runtime-versions.js` | Runtime version tests (12 tests) |
+| `apps/app-latest/src/app/app.component.spec.ts` | Angular unit tests |
