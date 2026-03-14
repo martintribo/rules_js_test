@@ -5,10 +5,16 @@
   "description": "Test repository for rules_js on Windows with pnpm symlinks and Angular",
   "scripts": {
     "build": "bazel build //...",
-    "test": "bazel test //...",
-    "build:app-latest": "bazel build //apps/app-latest:build",
-    "build:app-v16": "bazel build //apps/app-v16:build",
-    "build:app-v14": "bazel build //apps/app-v14:build"
+    "test": "node scripts/test-all.js",
+    "test:structure": "node scripts/verify-pnpm-structure.js",
+    "test:runtime": "node scripts/verify-runtime-versions.js",
+    "build:libs": "pnpm --filter @myorg/lib-b exec tsc --project tsconfig.json && pnpm --filter @myorg/lib-a exec tsc --project tsconfig.json && pnpm --filter @myorg/lib-c exec tsc --project tsconfig.json",
+    "build:app-latest": "pnpm --filter @myorg/app-latest exec ng build --configuration=development",
+    "build:app-v16": "pnpm --filter @myorg/app-v16 exec ng build --configuration=development",
+    "build:app-v14": "pnpm --filter @myorg/app-v14 exec ng build --configuration=development",
+    "build:apps": "pnpm run build:app-latest && pnpm run build:app-v16 && pnpm run build:app-v14",
+    "bazel:build": "bazel build //...",
+    "bazel:test": "bazel test //..."
   },
   "devDependencies": {
     "typescript": "~5.6.0"
