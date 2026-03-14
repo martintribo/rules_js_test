@@ -37,11 +37,11 @@ jobs:
       - name: Run structure tests
         run: pnpm test:structure
 
-      - name: Run runtime tests
-        run: pnpm test:runtime
-
       - name: Build libraries
         run: pnpm build:libs
+
+      - name: Run runtime tests
+        run: pnpm test:runtime
 
       - name: Build Angular 19 app (application builder)
         run: pnpm build:app-latest
