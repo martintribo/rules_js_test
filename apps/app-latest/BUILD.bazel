@@ -1,6 +1,7 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_config.bzl", "ng_config")
+load(":ng_config_no_symlinks.bzl", "ng_config_no_symlinks")
 
 npm_link_all_packages(name = "node_modules")
 
@@ -8,6 +9,11 @@ npm_link_all_packages(name = "node_modules")
 # This adds preserveSymlinks=true by default for Bazel compatibility
 ng_config(
     name = "ng_config",
+)
+
+# Create Angular config WITHOUT preserveSymlinks - for testing module resolution
+ng_config_no_symlinks(
+    name = "ng_config_no_symlinks",
 )
 
 # Build the Angular application
@@ -31,6 +37,31 @@ ng_application(
         ":node_modules/zone.js",
         ":node_modules/typescript",
         # First-party libraries
+        "//:node_modules/@myorg/lib-a",
+        "//:node_modules/@myorg/lib-b",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Build WITHOUT preserveSymlinks - test module resolution
+ng_application(
+    name = "build_no_symlinks",
+    node_modules = ":node_modules",
+    ng_config = ":ng_config_no_symlinks",
+    project_name = "app-latest",
+    srcs = glob(
+        [
+            "src/**/*",
+            "public/**/*",
+        ],
+        exclude = ["**/*.spec.ts"],
+    ),
+    args = ["--configuration=development"],
+    deps = [
+        ":node_modules/lodash",
+        ":node_modules/@types/lodash",
+        ":node_modules/zone.js",
+        ":node_modules/typescript",
         "//:node_modules/@myorg/lib-a",
         "//:node_modules/@myorg/lib-b",
     ],
