@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@myorg/lib-b": "workspace:*",
-    "lodash": "4.17.21"
+    "lodash": "4.17.21",
+    "tslib": "^2.6.0"
   },
   "dependenciesMeta": {
     "@myorg/lib-b": {

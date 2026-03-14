@@ -1,45 +1,35 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@npm//apps/app-v16:@angular/cli/package_json.bzl", angular_cli = "bin")
+load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
+load("@rules_angular//src/architect:ng_config.bzl", "ng_config")
 
 npm_link_all_packages(name = "node_modules")
 
-# Build the Angular 16 application using ng build
-angular_cli.ng(
+# Create Angular config (transforms angular.json and tsconfig.json)
+ng_config(
+    name = "ng_config",
+)
+
+# Build the Angular 16 application
+ng_application(
     name = "build",
+    node_modules = ":node_modules",
+    ng_config = ":ng_config",
+    project_name = "app-v16",
     srcs = glob(
         [
             "src/**/*",
         ],
         exclude = ["**/*.spec.ts"],
-    ) + [
-        "angular.json",
-        "tsconfig.json",
-        "tsconfig.app.json",
-        "package.json",
-        ":node_modules/@angular/animations",
-        ":node_modules/@angular/common",
-        ":node_modules/@angular/compiler",
-        ":node_modules/@angular/core",
-        ":node_modules/@angular/forms",
-        ":node_modules/@angular/platform-browser",
-        ":node_modules/@angular/platform-browser-dynamic",
-        ":node_modules/@angular/router",
+    ),
+    args = ["--configuration=development"],
+    deps = [
         ":node_modules/@angular-devkit/build-angular",
-        ":node_modules/@angular/compiler-cli",
         ":node_modules/lodash",
         ":node_modules/@types/lodash",
-        ":node_modules/rxjs",
-        ":node_modules/tslib",
         ":node_modules/zone.js",
         ":node_modules/typescript",
-        "//libs/lib-a",
-        "//libs/lib-b",
+        "//:node_modules/@myorg/lib-a",
+        "//:node_modules/@myorg/lib-b",
     ],
-    args = [
-        "build",
-        "--configuration=production",
-    ],
-    chdir = package_name(),
-    out_dirs = ["dist/app-v16"],
     visibility = ["//visibility:public"],
 )
