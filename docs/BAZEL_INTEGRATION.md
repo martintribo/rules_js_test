@@ -18,29 +18,33 @@ This document explains all modifications required to build this monorepo with Ba
 
 ```mermaid
 graph TB
-    subgraph "Bazel Module System"
-        MODULE[MODULE.bazel]
-        RULES_JS[rules_js 3.0.3]
-        RULES_TS[rules_ts 3.8.6]
-        RULES_ANGULAR[rules_angular]
+    subgraph BazelModules["Bazel Module System"]
+        MODULE["MODULE.bazel"]
+        RULES_JS["rules_js 3.0.3"]
+        RULES_TS["rules_ts 3.8.6"]
+        RULES_ANGULAR["rules_angular"]
     end
 
-    subgraph "Root Level"
-        ROOT_BUILD[BUILD.bazel]
-        NPM_LINK[npm_link_all_packages]
-        FIRST_PARTY[npm_link_package<br/>@myorg/lib-a, lib-b, lib-c]
+    subgraph RootLevel["Root Level"]
+        ROOT_BUILD["BUILD.bazel"]
+        NPM_LINK["npm_link_all_packages"]
+        FIRST_PARTY["npm_link_package
+        @myorg/lib-a, lib-b, lib-c"]
     end
 
-    subgraph "Libraries"
-        LIB_B[libs/lib-b]
-        LIB_A[libs/lib-a]
-        LIB_C[libs/lib-c]
+    subgraph Libraries
+        LIB_B["libs/lib-b"]
+        LIB_A["libs/lib-a"]
+        LIB_C["libs/lib-c"]
     end
 
-    subgraph "Applications"
-        APP_LATEST[apps/app-latest<br/>Angular 19]
-        APP_V16[apps/app-v16<br/>Angular 16]
-        APP_V14[apps/app-v14<br/>Angular 14]
+    subgraph Applications
+        APP_LATEST["apps/app-latest
+        Angular 19"]
+        APP_V16["apps/app-v16
+        Angular 16"]
+        APP_V14["apps/app-v14
+        Angular 14"]
     end
 
     MODULE --> RULES_JS
@@ -117,44 +121,52 @@ This was the most significant challenge. The problem: TypeScript looks for `@myo
 
 ```mermaid
 flowchart LR
-    subgraph "What TypeScript Expects"
-        TS[import from '@myorg/lib-b']
-        NM[node_modules/@myorg/lib-b]
+    subgraph Expected["What TypeScript Expects"]
+        TS["import from
+        '@myorg/lib-b'"]
+        NM["node_modules/
+        @myorg/lib-b"]
         TS --> NM
     end
 
-    subgraph "What Bazel Produces"
-        TSP[ts_project output]
-        BB[bazel-bin/libs/lib-b/dist/]
+    subgraph Produced["What Bazel Produces"]
+        TSP["ts_project output"]
+        BB["bazel-bin/
+        libs/lib-b/dist/"]
         TSP --> BB
     end
 
-    NM -.->|"❌ Not Found"| BB
+    NM -.-> |Not Found| BB
 ```
 
 ### The Solution
 
 ```mermaid
 flowchart TB
-    subgraph "Library Package (libs/lib-b)"
-        TS_PROJ[ts_project<br/>name = 'lib-b_ts']
-        NPM_PKG[npm_package<br/>name = 'pkg']
-        PKG_JSON[package.json]
+    subgraph LibPackage["Library Package - libs/lib-b"]
+        TS_PROJ["ts_project
+        name = lib-b_ts"]
+        NPM_PKG["npm_package
+        name = pkg"]
+        PKG_JSON["package.json"]
 
         TS_PROJ --> NPM_PKG
         PKG_JSON --> NPM_PKG
     end
 
-    subgraph "Root BUILD.bazel"
-        NPM_LINK[npm_link_package<br/>name = 'node_modules/@myorg/lib-b'<br/>src = '//libs/lib-b:pkg']
+    subgraph RootBuild["Root BUILD.bazel"]
+        NPM_LINK["npm_link_package
+        name = node_modules/@myorg/lib-b
+        src = //libs/lib-b:pkg"]
     end
 
-    subgraph "Consumer (libs/lib-a)"
-        CONSUMER[ts_project deps includes<br/>'//:node_modules/@myorg/lib-b']
+    subgraph Consumer["Consumer - libs/lib-a"]
+        CONSUMER_DEP["ts_project deps includes
+        //:node_modules/@myorg/lib-b"]
     end
 
     NPM_PKG --> NPM_LINK
-    NPM_LINK --> CONSUMER
+    NPM_LINK --> CONSUMER_DEP
 ```
 
 ### Root BUILD.bazel
@@ -318,24 +330,29 @@ ng_application(
 
 ```mermaid
 flowchart LR
-    subgraph "Input"
-        AJ[angular.json]
-        TC[tsconfig.json]
+    subgraph Input
+        AJ["angular.json"]
+        TC["tsconfig.json"]
     end
 
-    subgraph "ng_config (jq transforms)"
-        JQ1["Add preserveSymlinks=true"]
+    subgraph Transform["ng_config - jq transforms"]
+        JQ1["Add preserveSymlinks"]
         JQ2["Update outputPath"]
         JQ3["Update paths mappings"]
     end
 
-    subgraph "Output"
-        AJ2[transformed angular.json]
-        TC2[transformed tsconfig.json]
+    subgraph Output
+        AJ2["transformed
+        angular.json"]
+        TC2["transformed
+        tsconfig.json"]
     end
 
-    AJ --> JQ1 --> JQ2 --> AJ2
-    TC --> JQ3 --> TC2
+    AJ --> JQ1
+    JQ1 --> JQ2
+    JQ2 --> AJ2
+    TC --> JQ3
+    JQ3 --> TC2
 ```
 
 ---
@@ -377,22 +394,24 @@ ng_application(
 
 ```mermaid
 flowchart TB
-    subgraph "Module Resolution Path"
-        IMPORT["import from '@myorg/lib-a'"]
+    IMPORT["import from '@myorg/lib-a'"]
 
-        subgraph "TypeScript Resolution"
-            WALK["Walk up directory tree"]
-            FIND["Find node_modules/@myorg/lib-a"]
-            RESOLVE["Resolve to npm_link_package target"]
-        end
-
-        subgraph "Bazel Runtime"
-            SYMLINK["Symlink to bazel-bin/.../pkg"]
-            ACTUAL["Actual compiled files"]
-        end
+    subgraph TSResolution["TypeScript Resolution"]
+        WALK["Walk up directory tree"]
+        FIND["Find node_modules/@myorg/lib-a"]
+        RESOLVE["Resolve to npm_link_package target"]
     end
 
-    IMPORT --> WALK --> FIND --> RESOLVE --> SYMLINK --> ACTUAL
+    subgraph BazelRuntime["Bazel Runtime"]
+        SYMLINK["Symlink to bazel-bin/.../pkg"]
+        ACTUAL["Actual compiled files"]
+    end
+
+    IMPORT --> WALK
+    WALK --> FIND
+    FIND --> RESOLVE
+    RESOLVE --> SYMLINK
+    SYMLINK --> ACTUAL
 ```
 
 The npm_package + npm_link_package pattern creates a proper package structure that TypeScript can resolve without needing to follow symlinks to their real paths.
