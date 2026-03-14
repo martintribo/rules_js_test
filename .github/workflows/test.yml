@@ -1,0 +1,68 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [18, 20, 22]
+
+    runs-on: ${{ matrix.os }}
+    name: Test (${{ matrix.os }}, Node ${{ matrix.node-version }})
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run structure tests
+        run: pnpm test:structure
+
+      - name: Run runtime tests
+        run: pnpm test:runtime
+
+      - name: Build libraries
+        run: pnpm build:libs
+
+      - name: Build Angular 19 app (application builder)
+        run: pnpm build:app-latest
+
+      - name: Build Angular 16 app (esbuild builder)
+        run: pnpm build:app-v16
+
+      - name: Build Angular 14 app (webpack builder)
+        run: pnpm build:app-v14
+
+  # Summary job that requires all matrix jobs to pass
+  test-summary:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "Some tests failed"
+            exit 1
+          fi
+          echo "All tests passed!"
