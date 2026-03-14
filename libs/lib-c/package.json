@@ -1,7 +1,7 @@
 {
-  "name": "@myorg/lib-a",
+  "name": "@myorg/lib-c",
   "version": "0.0.1",
-  "description": "First-party library - depends on lib-b, tests lodash version isolation",
+  "description": "Library that uses lib-b via symlink (not injected) for comparison",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -12,12 +12,7 @@
   },
   "dependencies": {
     "@myorg/lib-b": "workspace:*",
-    "lodash": "4.17.21"
-  },
-  "dependenciesMeta": {
-    "@myorg/lib-b": {
-      "injected": true
-    }
+    "lodash": "4.17.19"
   },
   "peerDependencies": {
     "rxjs": "^7.0.0"

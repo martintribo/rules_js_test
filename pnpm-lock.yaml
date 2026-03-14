@@ -204,12 +204,34 @@ importers:
       typescript:
         specifier: ~5.6.0
         version: 5.6.3
+    dependenciesMeta:
+      '@myorg/lib-b':
+        injected: true
 
   libs/lib-b:
     dependencies:
       lodash:
         specifier: 4.17.15
         version: 4.17.15
+      rxjs:
+        specifier: ^7.0.0
+        version: 7.8.2
+    devDependencies:
+      '@types/lodash':
+        specifier: ^4.17.0
+        version: 4.17.24
+      typescript:
+        specifier: ~5.6.0
+        version: 5.6.3
+
+  libs/lib-c:
+    dependencies:
+      '@myorg/lib-b':
+        specifier: workspace:*
+        version: link:../lib-b
+      lodash:
+        specifier: 4.17.19
+        version: 4.17.19
       rxjs:
         specifier: ^7.0.0
         version: 7.8.2
@@ -4398,6 +4420,9 @@ packages:
 
   lodash@4.17.15:
     resolution: {integrity: sha512-8xOcRHvCjnocdS5cpwXQXVzmmh5e5+saE2QGoeQmbKmRS6J3VQppPOIt0MnmE+4xlZoumy0GPG0D0MVIQbNA1A==}
+
+  lodash@4.17.19:
+    resolution: {integrity: sha512-JNvd8XER9GQX0v2qJgsaN/mzFCNA5BRe/j8JN9d+tWyGLSodKQHKFicdwNYzWwI3wjRnaKPsGj1XkBjx/F96DQ==}
 
   lodash@4.17.20:
     resolution: {integrity: sha512-PlhdFcillOINfeV7Ni6oF1TAEayyZBoZ8bcshTHqOYJYlrqzRK5hagpagky5o4HfCzzd1TRkXPMFq6cKk9rGmA==}
@@ -11354,7 +11379,7 @@ snapshots:
       mute-stream: 0.0.8
       ora: 5.4.1
       run-async: 2.4.1
-      rxjs: 7.5.7
+      rxjs: 7.8.2
       string-width: 4.2.3
       strip-ansi: 6.0.1
       through: 2.3.8
@@ -11628,6 +11653,8 @@ snapshots:
   lodash.debounce@4.0.8: {}
 
   lodash@4.17.15: {}
+
+  lodash@4.17.19: {}
 
   lodash@4.17.20: {}
 
