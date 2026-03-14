@@ -1,10 +1,41 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+
+# First-party packages - link to root node_modules for TypeScript resolution
+npm_link_package(
+    name = "node_modules/@myorg/lib-a",
+    src = "//libs/lib-a:pkg",
+    package = "@myorg/lib-a",
+    visibility = ["//:__subpackages__"],
+)
+
+npm_link_package(
+    name = "node_modules/@myorg/lib-b",
+    src = "//libs/lib-b:pkg",
+    package = "@myorg/lib-b",
+    visibility = ["//:__subpackages__"],
+)
+
+npm_link_package(
+    name = "node_modules/@myorg/lib-c",
+    src = "//libs/lib-c:pkg",
+    package = "@myorg/lib-c",
+    visibility = ["//:__subpackages__"],
+)
 
 npm_link_all_packages(name = "node_modules")
 
-# Expose package.json for pnpm workspace
+# Expose files for Bazel targets
 exports_files([
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
 ])
+
+# Base tsconfig for library compilation
+js_library(
+    name = "tsconfig_base",
+    srcs = ["tsconfig.base.json"],
+    visibility = ["//visibility:public"],
+)

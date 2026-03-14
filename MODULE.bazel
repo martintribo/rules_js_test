@@ -6,11 +6,21 @@ module(
 )
 
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
-bazel_dep(name = "platforms", version = "0.0.10")
-bazel_dep(name = "aspect_bazel_lib", version = "2.9.4")
-bazel_dep(name = "aspect_rules_js", version = "2.1.0")
-bazel_dep(name = "aspect_rules_ts", version = "3.3.1")
-bazel_dep(name = "rules_nodejs", version = "6.3.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
+bazel_dep(name = "aspect_rules_js", version = "3.0.3")
+bazel_dep(name = "aspect_rules_ts", version = "3.8.6")
+bazel_dep(name = "rules_nodejs", version = "6.7.3")
+bazel_dep(name = "jq.bzl", version = "0.6.1")
+bazel_dep(name = "yq.bzl", version = "0.3.5")
+
+# rules_angular - using git_override for latest version
+bazel_dep(name = "rules_angular")
+git_override(
+    module_name = "rules_angular",
+    remote = "https://github.com/angular/rules_angular.git",
+    commit = "2d6de06a64f559d115ea019923561690484677cc",
+)
 
 ####################
 # rules_js setup
@@ -22,12 +32,6 @@ npm.npm_translate_lock(
     pnpm_lock = "//:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
     npmrc = "//:.npmrc",
-    public_hoist_packages = {
-        # Hoist Angular CLI packages for builder access
-        "@angular/cli": [""],
-        "@angular-devkit/build-angular": [""],
-        "@angular/build": [""],
-    },
 )
 use_repo(npm, "npm")
 
@@ -38,3 +42,14 @@ use_repo(npm, "npm")
 rules_ts_ext = use_extension("@aspect_rules_ts//ts:extensions.bzl", "ext", dev_dependency = True)
 rules_ts_ext.deps()
 use_repo(rules_ts_ext, "npm_typescript")
+
+####################
+# rules_angular setup
+####################
+
+rules_angular = use_extension("@rules_angular//setup:extensions.bzl", "rules_angular")
+rules_angular.setup(
+    angular_compiler_cli = "@npm//:node_modules/@angular/compiler-cli",
+    typescript = "@npm//:node_modules/typescript",
+)
+use_repo(rules_angular, "rules_angular_configurable_deps")
