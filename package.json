@@ -1,0 +1,21 @@
+{
+  "name": "rules-js-test",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Test repository for rules_js on Windows with pnpm symlinks and Angular",
+  "scripts": {
+    "build": "bazel build //...",
+    "test": "bazel test //...",
+    "build:app-latest": "bazel build //apps/app-latest:build",
+    "build:app-v16": "bazel build //apps/app-v16:build",
+    "build:app-v14": "bazel build //apps/app-v14:build"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.14.2"
+}

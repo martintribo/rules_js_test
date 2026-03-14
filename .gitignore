@@ -1,0 +1,34 @@
+# Bazel
+/bazel-*
+/.bazel
+
+# Node
+node_modules/
+.pnpm-store/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+out/
+.angular/
+
+# Compiled library output (in case output ends up in src)
+libs/**/*.js
+libs/**/*.js.map
+libs/**/*.d.ts
+libs/**/*.d.ts.map
+
+# Bazel lock file (regenerated)
+MODULE.bazel.lock
+
+# Local config
+user.bazelrc

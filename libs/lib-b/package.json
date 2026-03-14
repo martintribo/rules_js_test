@@ -1,0 +1,23 @@
+{
+  "name": "@myorg/lib-b",
+  "version": "0.0.1",
+  "description": "Innermost library - tests lodash version isolation",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "lodash": "4.17.15"
+  },
+  "peerDependencies": {
+    "rxjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.0",
+    "@types/lodash": "^4.17.0"
+  }
+}

@@ -1,0 +1,46 @@
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//apps/app-latest:@angular/build/package_json.bzl", angular_build = "bin")
+
+npm_link_all_packages(name = "node_modules")
+
+# Build the Angular application using ng build
+angular_build.ng(
+    name = "build",
+    srcs = glob(
+        [
+            "src/**/*",
+            "public/**/*",
+        ],
+        exclude = ["**/*.spec.ts"],
+    ) + [
+        "angular.json",
+        "tsconfig.json",
+        "tsconfig.app.json",
+        "package.json",
+        ":node_modules/@angular/animations",
+        ":node_modules/@angular/common",
+        ":node_modules/@angular/compiler",
+        ":node_modules/@angular/core",
+        ":node_modules/@angular/forms",
+        ":node_modules/@angular/platform-browser",
+        ":node_modules/@angular/platform-browser-dynamic",
+        ":node_modules/@angular/router",
+        ":node_modules/@angular/build",
+        ":node_modules/@angular/compiler-cli",
+        ":node_modules/lodash",
+        ":node_modules/@types/lodash",
+        ":node_modules/rxjs",
+        ":node_modules/tslib",
+        ":node_modules/zone.js",
+        ":node_modules/typescript",
+        "//libs/lib-a",
+        "//libs/lib-b",
+    ],
+    args = [
+        "build",
+        "--configuration=production",
+    ],
+    chdir = package_name(),
+    out_dirs = ["dist/app-latest"],
+    visibility = ["//visibility:public"],
+)
