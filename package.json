@@ -31,6 +31,18 @@
       "lmdb",
       "msgpackr-extract",
       "nice-napi"
-    ]
+    ],
+    "packageExtensions": {
+      "@angular/build": {
+        "dependencies": {
+          "tslib": "^2.0.0"
+        }
+      },
+      "@angular-builders/custom-esbuild": {
+        "dependencies": {
+          "rxjs": "^7.0.0"
+        }
+      }
+    }
   }
 }

@@ -18,11 +18,13 @@ ng_application(
     srcs = glob(
         [
             "src/**/*",
+            "webpack/**/*",
         ],
         exclude = ["**/*.spec.ts"],
     ),
     args = ["--configuration=development"],
     deps = [
+        ":node_modules/@angular-builders/custom-webpack",
         ":node_modules/@angular-devkit/build-angular",
         ":node_modules/lodash",
         ":node_modules/@types/lodash",
@@ -30,6 +32,12 @@ ng_application(
         ":node_modules/typescript",
         "//:node_modules/@myorg/lib-a",
         "//:node_modules/@myorg/lib-b",
+        # Include workspace package dependencies for sandbox resolution
+        "//:.aspect_rules_js/node_modules/lodash@4.17.15",
+        "//:.aspect_rules_js/node_modules/lodash@4.17.21",
+        "//:.aspect_rules_js/node_modules/rxjs@7.5.7",
+        "//:.aspect_rules_js/node_modules/rxjs@7.8.2",
+        "//:.aspect_rules_js/node_modules/tslib@2.8.1",
     ],
     visibility = ["//visibility:public"],
 )

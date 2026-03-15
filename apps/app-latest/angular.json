@@ -10,7 +10,7 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular/build:application",
+          "builder": "@angular-builders/custom-esbuild:application",
           "options": {
             "outputPath": "dist/app-latest",
             "index": "src/index.html",
@@ -24,7 +24,8 @@
               }
             ],
             "styles": ["src/styles.css"],
-            "scripts": []
+            "scripts": [],
+            "plugins": ["./esbuild/bazel-sandbox-plugin.js"]
           },
           "configurations": {
             "production": {

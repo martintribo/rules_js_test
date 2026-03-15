@@ -2,7 +2,7 @@
   "name": "@myorg/app-v16",
   "version": "0.0.0",
   "private": true,
-  "description": "Angular 16 app using @angular-devkit/build-angular:browser-esbuild builder",
+  "description": "Angular 16 app using @angular-builders/custom-webpack:browser builder",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -24,6 +24,7 @@
     "zone.js": "~0.13.0"
   },
   "devDependencies": {
+    "@angular-builders/custom-webpack": "^16.0.0",
     "@angular-devkit/build-angular": "^16.2.0",
     "@angular/cli": "^16.2.0",
     "@angular/compiler-cli": "^16.2.0",
