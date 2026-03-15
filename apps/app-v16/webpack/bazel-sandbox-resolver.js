@@ -270,53 +270,26 @@ class BazelSandboxResolverPlugin {
       const packageName = getPackageName(request.request);
       const subpath = getSubpath(request.request);
 
+      // Only handle main package imports, not subpaths
+      // Subpaths need proper package.json exports handling that webpack does better
+      if (subpath) {
+        return callback();
+      }
+
       // Check if we can find this package in the package store
       const packagePath = findInPackageStore(packageName, sandboxInfo);
 
       if (packagePath) {
-        // Found the package in the store - resolve the entry point
-        let targetPath;
+        // Request is for the package itself - resolve the main entry
+        const targetPath = resolvePackageMain(packagePath);
 
-        if (subpath) {
-          // Request is for a subpath like "lodash/get"
-          targetPath = path.join(packagePath, subpath);
-
-          // Try with various extensions
-          const extensions = ['', '.js', '.mjs', '.json'];
-          for (const ext of extensions) {
-            const tryPath = targetPath + ext;
-            if (fs.existsSync(tryPath) && fs.statSync(tryPath).isFile()) {
-              info('Resolved', request.request, '->', tryPath);
-              return callback(null, {
-                ...request,
-                path: tryPath,
-                bazelSandboxProcessed: true,
-              });
-            }
-          }
-
-          // Try index.js in the subpath directory
-          const indexPath = path.join(targetPath, 'index.js');
-          if (fs.existsSync(indexPath)) {
-            info('Resolved', request.request, '->', indexPath);
-            return callback(null, {
-              ...request,
-              path: indexPath,
-              bazelSandboxProcessed: true,
-            });
-          }
-        } else {
-          // Request is for the package itself - resolve the main entry
-          targetPath = resolvePackageMain(packagePath);
-
-          if (targetPath) {
-            info('Resolved', request.request, '->', targetPath);
-            return callback(null, {
-              ...request,
-              path: targetPath,
-              bazelSandboxProcessed: true,
-            });
-          }
+        if (targetPath) {
+          info('Resolved', request.request, '->', targetPath);
+          return callback(null, {
+            ...request,
+            path: targetPath,
+            bazelSandboxProcessed: true,
+          });
         }
       }
 
