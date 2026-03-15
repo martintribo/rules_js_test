@@ -83,13 +83,15 @@ jobs:
       - name: Build libraries with Bazel
         run: bazel build //libs/lib-a:pkg //libs/lib-b:pkg //libs/lib-c:pkg
 
-      - name: Build Angular 19 app with Bazel
-        run: bazel build //apps/app-latest:build
+      # Linux sandbox doesn't follow pnpm symlinks for transitive deps from workspace packages
+      # (e.g., @myorg/lib-a's lodash dep points outside sandbox). Use local strategy as workaround.
+      - name: Build Angular apps with Bazel
+        run: bazel build //apps/app-latest:build ${{ runner.os == 'Linux' && '--spawn_strategy=local' || '' }}
 
       # Angular 14/16 have Windows MAX_PATH issues with @babel packages
       - name: Build Angular 14/16 apps with Bazel (Linux only)
         if: runner.os != 'Windows'
-        run: bazel build //apps/app-v14:build //apps/app-v16:build
+        run: bazel build //apps/app-v14:build //apps/app-v16:build --spawn_strategy=local
 
   # Summary job that requires all matrix jobs to pass
   test-summary:
