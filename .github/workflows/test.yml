@@ -52,16 +52,59 @@ jobs:
       - name: Build Angular 14 app (webpack builder)
         run: pnpm build:app-v14
 
+  bazel:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+    name: Bazel (${{ matrix.os }})
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build libraries with Bazel
+        run: bazel build //libs/lib-a:pkg //libs/lib-b:pkg //libs/lib-c:pkg
+
+      - name: Build Angular 19 app with Bazel
+        run: bazel build //apps/app-latest:build
+
+      # Angular 14/16 have Windows MAX_PATH issues with @babel packages
+      - name: Build Angular 14/16 apps with Bazel (Linux only)
+        if: runner.os != 'Windows'
+        run: bazel build //apps/app-v14:build //apps/app-v16:build
+
   # Summary job that requires all matrix jobs to pass
   test-summary:
-    needs: test
+    needs: [test, bazel]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check test results
         run: |
           if [ "${{ needs.test.result }}" != "success" ]; then
-            echo "Some tests failed"
+            echo "pnpm tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.bazel.result }}" != "success" ]; then
+            echo "Bazel builds failed"
             exit 1
           fi
           echo "All tests passed!"
