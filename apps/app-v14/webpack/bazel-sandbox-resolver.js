@@ -234,33 +234,44 @@ class BazelSandboxResolverPlugin {
   constructor() {
     this.sandboxInfo = detectSandboxInfo();
     this.name = 'BazelSandboxResolverPlugin';
+    // Track what's currently being resolved to prevent infinite loops
+    this.resolving = new Set();
   }
 
   apply(resolver) {
     const sandboxInfo = this.sandboxInfo;
+    const resolving = this.resolving;
 
     // Use the 'resolve' hook to try normal resolution first, then fallback
     resolver.getHook('resolve').tapAsync(this.name, (request, resolveContext, callback) => {
-      // Skip if already processed by us
-      if (request.bazelSandboxProcessed) {
-        return callback();
-      }
-
       // Skip relative and absolute paths
       if (!request.request || request.request.startsWith('.') || request.request.startsWith('/')) {
         return callback();
       }
 
-      // Mark as processed to avoid infinite loops
-      const newRequest = Object.assign({}, request, { bazelSandboxProcessed: true });
+      // Create a unique key for this resolution to detect recursion
+      const resolveKey = `${request.path || ''}:${request.request}`;
+
+      // Skip if we're already resolving this (prevent infinite loop)
+      if (resolving.has(resolveKey)) {
+        return callback();
+      }
+
+      // Mark as currently resolving
+      resolving.add(resolveKey);
 
       // Try normal resolution first
+      const newRequest = Object.assign({}, request);
+
       resolver.doResolve(
-        resolver.getHook('resolve'),
+        resolver.getHook('parsedResolve'),
         newRequest,
         null,
         resolveContext,
         (err, result) => {
+          // Done resolving this key
+          resolving.delete(resolveKey);
+
           // If resolution succeeded, return the result
           if (!err && result && result.path) {
             return callback(null, result);
@@ -293,7 +304,6 @@ class BazelSandboxResolverPlugin {
                 return callback(null, {
                   ...request,
                   path: tryPath,
-                  bazelSandboxProcessed: true,
                 });
               }
             }
@@ -304,7 +314,6 @@ class BazelSandboxResolverPlugin {
               return callback(null, {
                 ...request,
                 path: indexPath,
-                bazelSandboxProcessed: true,
               });
             }
           } else {
@@ -314,7 +323,6 @@ class BazelSandboxResolverPlugin {
               return callback(null, {
                 ...request,
                 path: targetPath,
-                bazelSandboxProcessed: true,
               });
             }
           }
