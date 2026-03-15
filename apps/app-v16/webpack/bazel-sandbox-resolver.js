@@ -31,6 +31,7 @@ function detectSandboxInfo() {
   const cwd = process.cwd();
 
   // Pattern: .../sandbox/linux-sandbox/<id>/execroot/_main/...
+  // or .../sandbox/processwrapper-sandbox/<id>/execroot/_main/...
   const sandboxPattern = /^(.*\/sandbox\/(?:linux|processwrapper)-sandbox\/\d+)(\/execroot\/[^/]+)(\/.*)?$/;
   const match = cwd.match(sandboxPattern);
 
@@ -129,6 +130,54 @@ function findInPackageStore(moduleName, sandboxInfo) {
 }
 
 /**
+ * Resolve the main entry point of a package
+ */
+function resolvePackageMain(packagePath) {
+  const pkgJsonPath = path.join(packagePath, 'package.json');
+
+  if (!fs.existsSync(pkgJsonPath)) {
+    // Try index.js as fallback
+    const indexPath = path.join(packagePath, 'index.js');
+    if (fs.existsSync(indexPath)) {
+      return indexPath;
+    }
+    return null;
+  }
+
+  try {
+    const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+
+    // Try various entry points in order of preference
+    const entryPoints = [
+      pkgJson.module,
+      pkgJson.main,
+      pkgJson.exports?.['.']?.import,
+      pkgJson.exports?.['.']?.require,
+      pkgJson.exports?.['.']?.default,
+      typeof pkgJson.exports?.['.'] === 'string' ? pkgJson.exports['.'] : null,
+      'index.js',
+    ];
+
+    for (const entry of entryPoints) {
+      if (typeof entry === 'string') {
+        const entryPath = path.join(packagePath, entry);
+        if (fs.existsSync(entryPath)) {
+          return entryPath;
+        }
+        // Try with .js extension
+        if (!entry.endsWith('.js') && fs.existsSync(entryPath + '.js')) {
+          return entryPath + '.js';
+        }
+      }
+    }
+  } catch (e) {
+    debug('Error reading package.json:', e.message);
+  }
+
+  return null;
+}
+
+/**
  * Check if a path is within the sandbox execroot
  */
 function isInSandbox(filepath, sandboxInfo) {
@@ -205,9 +254,10 @@ class BazelSandboxResolverPlugin {
   apply(resolver) {
     const sandboxInfo = this.sandboxInfo;
 
-    // Hook into the resolve process
-    resolver.getHook('resolve').tapAsync(this.name, (request, resolveContext, callback) => {
-      // Skip if already processed
+    // Hook into the resolve process at the 'described-resolve' stage
+    // This is after the request has been parsed but before resolution starts
+    resolver.getHook('described-resolve').tapAsync(this.name, (request, resolveContext, callback) => {
+      // Skip if already processed by us
       if (request.bazelSandboxProcessed) {
         return callback();
       }
@@ -217,78 +267,77 @@ class BazelSandboxResolverPlugin {
         return callback();
       }
 
-      // Let the normal resolution try first
-      const newRequest = Object.assign({}, request, { bazelSandboxProcessed: true });
+      const packageName = getPackageName(request.request);
+      const subpath = getSubpath(request.request);
 
-      resolver.doResolve(
-        resolver.getHook('resolve'),
-        newRequest,
-        null,
-        resolveContext,
-        (err, result) => {
-          // If resolution succeeded, check if the path escaped the sandbox
-          if (!err && result && result.path) {
-            if (!isInSandbox(result.path, sandboxInfo)) {
-              debug('Path escaped sandbox:', result.path);
+      // Check if we can find this package in the package store
+      const packagePath = findInPackageStore(packageName, sandboxInfo);
 
-              // Try to remap the path back into the sandbox
-              const remappedPath = remapToSandbox(result.path, sandboxInfo);
-              if (remappedPath) {
-                debug('Remapped to:', remappedPath);
-                result.path = remappedPath;
-              }
+      if (packagePath) {
+        // Found the package in the store - resolve the entry point
+        let targetPath;
+
+        if (subpath) {
+          // Request is for a subpath like "lodash/get"
+          targetPath = path.join(packagePath, subpath);
+
+          // Try with various extensions
+          const extensions = ['', '.js', '.mjs', '.json'];
+          for (const ext of extensions) {
+            const tryPath = targetPath + ext;
+            if (fs.existsSync(tryPath) && fs.statSync(tryPath).isFile()) {
+              info('Resolved', request.request, '->', tryPath);
+              return callback(null, {
+                ...request,
+                path: tryPath,
+                bazelSandboxProcessed: true,
+              });
             }
-            return callback(null, result);
           }
 
-          // If resolution failed, try to find the module in the package store
-          if (err || !result) {
-            const packageName = getPackageName(request.request);
-            const subpath = getSubpath(request.request);
-
-            debug('Resolution failed for:', request.request, 'trying package store');
-
-            const packagePath = findInPackageStore(packageName, sandboxInfo);
-
-            if (packagePath) {
-              let targetPath = packagePath;
-              if (subpath) {
-                targetPath = path.join(packagePath, subpath);
-              }
-
-              // Try to resolve to an actual file
-              const extensions = ['', '.js', '.json', '.node', '/index.js', '/index.json'];
-              for (const ext of extensions) {
-                const tryPath = targetPath + ext;
-                if (fs.existsSync(tryPath)) {
-                  const stat = fs.statSync(tryPath);
-                  if (stat.isFile()) {
-                    info('Resolved', request.request, '->', tryPath);
-                    return callback(null, {
-                      path: tryPath,
-                      request: request.request,
-                    });
-                  }
-                }
-              }
-
-              // Return the package directory and let webpack figure out the entry
-              if (fs.existsSync(targetPath)) {
-                info('Resolved', request.request, '->', targetPath);
-                return callback(null, {
-                  path: targetPath,
-                  request: request.request,
-                });
-              }
-            }
-
-            // Couldn't help, return original error
-            return callback(err);
+          // Try index.js in the subpath directory
+          const indexPath = path.join(targetPath, 'index.js');
+          if (fs.existsSync(indexPath)) {
+            info('Resolved', request.request, '->', indexPath);
+            return callback(null, {
+              ...request,
+              path: indexPath,
+              bazelSandboxProcessed: true,
+            });
           }
+        } else {
+          // Request is for the package itself - resolve the main entry
+          targetPath = resolvePackageMain(packagePath);
 
-          return callback(null, result);
+          if (targetPath) {
+            info('Resolved', request.request, '->', targetPath);
+            return callback(null, {
+              ...request,
+              path: targetPath,
+              bazelSandboxProcessed: true,
+            });
+          }
         }
-      );
+      }
+
+      // Let normal resolution continue
+      callback();
+    });
+
+    // Also intercept the final resolved path to check for sandbox escapes
+    resolver.getHook('result').tapAsync(this.name, (request, resolveContext, callback) => {
+      if (request.path && !isInSandbox(request.path, sandboxInfo)) {
+        debug('Result path escaped sandbox:', request.path);
+
+        // Try to remap the path back into the sandbox
+        const remappedPath = remapToSandbox(request.path, sandboxInfo);
+        if (remappedPath) {
+          debug('Remapped result to:', remappedPath);
+          request.path = remappedPath;
+        }
+      }
+
+      callback(null, request);
     });
   }
 }
