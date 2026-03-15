@@ -16,7 +16,6 @@ ts_project(
     out_dir = "dist",
     root_dir = "src",
     tsconfig = "tsconfig.json",
-    data = ["//:tsconfig_base"],
     visibility = ["//visibility:public"],
     deps = [
         ":node_modules/@types/lodash",
