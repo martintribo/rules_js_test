@@ -83,8 +83,9 @@ jobs:
       - name: Build libraries with Bazel
         run: bazel build //libs/lib-a:pkg //libs/lib-b:pkg //libs/lib-c:pkg
 
+      # Use --spawn_strategy=local on Linux to avoid sandbox symlink issues
       - name: Build Angular 19 app with Bazel
-        run: bazel build //apps/app-latest:build
+        run: bazel build //apps/app-latest:build ${{ runner.os == 'Linux' && '--spawn_strategy=local' || '' }}
 
       # Angular 14/16 have Windows MAX_PATH issues with @babel packages
       - name: Build Angular 14/16 apps with Bazel (Linux only)
