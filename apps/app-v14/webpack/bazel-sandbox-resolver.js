@@ -4,9 +4,11 @@
  * This plugin helps webpack resolve modules inside Bazel's sandbox.
  * When running in linux-sandbox, symlinks in node_modules may point to
  * absolute paths that don't exist in the sandbox namespace. This plugin
- * intercepts failed resolutions and finds modules in the package store.
+ * remaps such escaped paths back into the sandbox.
  *
- * Similar to the esbuild plugin at apps/app-latest/esbuild/bazel-sandbox-plugin.js
+ * The key insight is that we should NOT proactively intercept resolutions,
+ * because webpack's normal resolution correctly handles version selection.
+ * We only need to fix paths that escape the sandbox namespace.
  */
 
 const path = require('path');
@@ -68,119 +70,10 @@ function detectSandboxInfo() {
 }
 
 /**
- * Find a package in the .aspect_rules_js package store
- */
-function findInPackageStore(moduleName, sandboxInfo) {
-  const binDir = process.env.BAZEL_BINDIR || 'bazel-out/k8-fastbuild/bin';
-  const packageStorePath = path.join(sandboxInfo.sandboxExecroot, binDir, 'node_modules/.aspect_rules_js');
-
-  debug('Looking for', moduleName, 'in package store:', packageStorePath);
-
-  if (!fs.existsSync(packageStorePath)) {
-    debug('Package store does not exist:', packageStorePath);
-    return null;
-  }
-
-  try {
-    const entries = fs.readdirSync(packageStorePath);
-
-    // Handle scoped packages like @types/lodash
-    const isScoped = moduleName.startsWith('@');
-    let searchName;
-
-    if (isScoped) {
-      // @types/lodash -> @types+lodash
-      // @myorg/lib-a -> @myorg+lib-a
-      searchName = moduleName.replace('/', '+');
-    } else {
-      searchName = moduleName;
-    }
-
-    // Find matching directories (e.g., lodash@4.17.21, rxjs@7.8.2)
-    const matches = entries.filter(entry => {
-      // Match package@version pattern
-      return entry.startsWith(searchName + '@');
-    });
-
-    debug('Found matches for', moduleName, ':', matches);
-
-    if (matches.length > 0) {
-      // Use the first match (or we could be smarter about version selection)
-      const matchDir = matches[0];
-      const fullPath = path.join(packageStorePath, matchDir, 'node_modules', moduleName);
-
-      if (fs.existsSync(fullPath)) {
-        debug('Found package at:', fullPath);
-        return fullPath;
-      }
-
-      // For scoped packages, the structure is different
-      // @types+lodash@4.17.24 -> node_modules/@types/lodash
-      const scopedPath = path.join(packageStorePath, matchDir, 'node_modules', ...moduleName.split('/'));
-      if (fs.existsSync(scopedPath)) {
-        debug('Found scoped package at:', scopedPath);
-        return scopedPath;
-      }
-    }
-  } catch (e) {
-    debug('Error searching package store:', e.message);
-  }
-
-  return null;
-}
-
-/**
- * Resolve the main entry point of a package
- */
-function resolvePackageMain(packagePath) {
-  const pkgJsonPath = path.join(packagePath, 'package.json');
-
-  if (!fs.existsSync(pkgJsonPath)) {
-    // Try index.js as fallback
-    const indexPath = path.join(packagePath, 'index.js');
-    if (fs.existsSync(indexPath)) {
-      return indexPath;
-    }
-    return null;
-  }
-
-  try {
-    const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
-
-    // Try various entry points in order of preference
-    const entryPoints = [
-      pkgJson.module,
-      pkgJson.main,
-      pkgJson.exports?.['.']?.import,
-      pkgJson.exports?.['.']?.require,
-      pkgJson.exports?.['.']?.default,
-      typeof pkgJson.exports?.['.'] === 'string' ? pkgJson.exports['.'] : null,
-      'index.js',
-    ];
-
-    for (const entry of entryPoints) {
-      if (typeof entry === 'string') {
-        const entryPath = path.join(packagePath, entry);
-        if (fs.existsSync(entryPath)) {
-          return entryPath;
-        }
-        // Try with .js extension
-        if (!entry.endsWith('.js') && fs.existsSync(entryPath + '.js')) {
-          return entryPath + '.js';
-        }
-      }
-    }
-  } catch (e) {
-    debug('Error reading package.json:', e.message);
-  }
-
-  return null;
-}
-
-/**
  * Check if a path is within the sandbox execroot
  */
 function isInSandbox(filepath, sandboxInfo) {
+  if (!filepath) return true;
   const resolved = path.resolve(filepath);
   const normalizedExecroot = path.resolve(sandboxInfo.sandboxExecroot);
   return resolved.startsWith(normalizedExecroot + path.sep) || resolved === normalizedExecroot;
@@ -190,56 +83,50 @@ function isInSandbox(filepath, sandboxInfo) {
  * Remap an escaped path back into the sandbox
  */
 function remapToSandbox(escapedPath, sandboxInfo) {
+  // Pattern 1: Path contains /execroot/<workspace>/...
+  // Example: /home/user/.cache/bazel/.../execroot/_main/bazel-out/...
   const execrootPattern = /\/execroot\/([^/]+)(\/.*)?$/;
   const match = escapedPath.match(execrootPattern);
 
   if (match) {
     const relativePath = match[2] || '';
     const remappedPath = sandboxInfo.sandboxExecroot + relativePath;
+    debug('Trying remap via execroot pattern:', escapedPath, '->', remappedPath);
 
     if (fs.existsSync(remappedPath)) {
       return remappedPath;
     }
   }
 
-  // Try extracting the relative path from bazel-out onwards
+  // Pattern 2: Path contains /bazel-out/...
+  // Extract from bazel-out onwards and prepend sandbox execroot
   const bazelOutIdx = escapedPath.indexOf('/bazel-out/');
   if (bazelOutIdx >= 0) {
     const relativePath = escapedPath.substring(bazelOutIdx);
-    const alternativePath = sandboxInfo.sandboxExecroot + relativePath;
-    if (fs.existsSync(alternativePath)) {
-      return alternativePath;
+    const remappedPath = sandboxInfo.sandboxExecroot + relativePath;
+    debug('Trying remap via bazel-out pattern:', escapedPath, '->', remappedPath);
+
+    if (fs.existsSync(remappedPath)) {
+      return remappedPath;
     }
   }
 
+  // Pattern 3: Path contains /node_modules/.aspect_rules_js/...
+  // This handles paths that reference the package store directly
+  const aspectIdx = escapedPath.indexOf('/node_modules/.aspect_rules_js/');
+  if (aspectIdx >= 0) {
+    const relativePath = escapedPath.substring(aspectIdx);
+    const binDir = process.env.BAZEL_BINDIR || 'bazel-out/k8-fastbuild/bin';
+    const remappedPath = path.join(sandboxInfo.sandboxExecroot, binDir, relativePath);
+    debug('Trying remap via aspect_rules_js pattern:', escapedPath, '->', remappedPath);
+
+    if (fs.existsSync(remappedPath)) {
+      return remappedPath;
+    }
+  }
+
+  debug('Could not remap escaped path:', escapedPath);
   return null;
-}
-
-/**
- * Extract the package name from a request
- * e.g., "lodash/get" -> "lodash", "@myorg/lib-a/utils" -> "@myorg/lib-a"
- */
-function getPackageName(request) {
-  if (request.startsWith('@')) {
-    const parts = request.split('/');
-    if (parts.length >= 2) {
-      return parts[0] + '/' + parts[1];
-    }
-    return request;
-  }
-  return request.split('/')[0];
-}
-
-/**
- * Get the subpath within a package
- * e.g., "lodash/get" -> "get", "@myorg/lib-a/utils" -> "utils"
- */
-function getSubpath(request) {
-  const packageName = getPackageName(request);
-  if (request === packageName) {
-    return '';
-  }
-  return request.substring(packageName.length + 1);
 }
 
 /**
@@ -254,60 +141,26 @@ class BazelSandboxResolverPlugin {
   apply(resolver) {
     const sandboxInfo = this.sandboxInfo;
 
-    // Hook into the resolve process at the 'described-resolve' stage
-    // This is after the request has been parsed but before resolution starts
-    resolver.getHook('described-resolve').tapAsync(this.name, (request, resolveContext, callback) => {
-      // Skip if already processed by us
-      if (request.bazelSandboxProcessed) {
-        return callback();
-      }
-
-      // Skip relative and absolute paths
-      if (!request.request || request.request.startsWith('.') || request.request.startsWith('/')) {
-        return callback();
-      }
-
-      const packageName = getPackageName(request.request);
-      const subpath = getSubpath(request.request);
-
-      // Only handle main package imports, not subpaths
-      // Subpaths need proper package.json exports handling that webpack does better
-      if (subpath) {
-        return callback();
-      }
-
-      // Check if we can find this package in the package store
-      const packagePath = findInPackageStore(packageName, sandboxInfo);
-
-      if (packagePath) {
-        // Request is for the package itself - resolve the main entry
-        const targetPath = resolvePackageMain(packagePath);
-
-        if (targetPath) {
-          info('Resolved', request.request, '->', targetPath);
-          return callback(null, {
-            ...request,
-            path: targetPath,
-            bazelSandboxProcessed: true,
-          });
-        }
-      }
-
-      // Let normal resolution continue
-      callback();
-    });
-
-    // Also intercept the final resolved path to check for sandbox escapes
+    // Only use the result hook to fix paths that escape the sandbox
+    // We do NOT proactively intercept resolutions because:
+    // 1. Webpack's normal resolution correctly handles version selection
+    // 2. We might pick the wrong version if there are multiple
     resolver.getHook('result').tapAsync(this.name, (request, resolveContext, callback) => {
-      if (request.path && !isInSandbox(request.path, sandboxInfo)) {
-        debug('Result path escaped sandbox:', request.path);
+      // Skip if no path or already in sandbox
+      if (!request.path || isInSandbox(request.path, sandboxInfo)) {
+        return callback(null, request);
+      }
 
-        // Try to remap the path back into the sandbox
-        const remappedPath = remapToSandbox(request.path, sandboxInfo);
-        if (remappedPath) {
-          debug('Remapped result to:', remappedPath);
-          request.path = remappedPath;
-        }
+      debug('Result path escaped sandbox:', request.path);
+
+      // Try to remap the path back into the sandbox
+      const remappedPath = remapToSandbox(request.path, sandboxInfo);
+      if (remappedPath) {
+        info('Remapped', request.path, '->', remappedPath);
+        request.path = remappedPath;
+      } else {
+        // Log but don't fail - the path might still work in some cases
+        debug('Could not remap escaped path, continuing anyway:', request.path);
       }
 
       callback(null, request);
