@@ -23,6 +23,7 @@ ng_application(
     ),
     args = ["--configuration=development"],
     deps = [
+        ":node_modules/@angular-devkit/build-angular",
         ":node_modules/lodash",
         ":node_modules/@types/lodash",
         ":node_modules/zone.js",
