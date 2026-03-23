@@ -29,8 +29,6 @@ apps and their Bazel-integrated versions.
 This report shows the differences between vanilla Angular apps (baseline) and
 the Bazel-integrated versions in this repository.
 
-_Generated on 2026-03-23 20:50:13 UTC_
-
 ---
 
 ## app-latest
@@ -235,5 +233,7 @@ index 5d0234cb..2a95f511 100644
  # Gather node options
 ```
 
+
+_diff-hash: 13b911c86d928982_
 
 <!-- BASELINE-DIFF-END -->
