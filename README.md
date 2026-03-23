@@ -29,7 +29,7 @@ apps and their Bazel-integrated versions.
 This report shows the differences between vanilla Angular apps (baseline) and
 the Bazel-integrated versions in this repository.
 
-_Generated on 2026-03-23 20:39:51 UTC_
+_Generated on 2026-03-23 20:42:55 UTC_
 
 ---
 
@@ -89,7 +89,6 @@ _Generated on 2026-03-23 20:39:51 UTC_
 
 ### Files only in Bazel version (added for Bazel integration)
 
-- `test-fs-patches.js`
 - `webpack/bazel-sandbox-resolver.js`
 - `webpack/webpack.config.js`
 
