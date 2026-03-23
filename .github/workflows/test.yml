@@ -35,43 +35,58 @@ jobs:
 
       - name: "Test: pnpm structure"
         id: structure
+        if: always()
         run: pnpm test:structure
 
       - name: Build libraries
         id: build_libs
+        if: always() && steps.structure.outcome != 'cancelled'
         run: pnpm build:libs
 
       - name: "Test: runtime version isolation"
         id: runtime
+        if: always() && steps.build_libs.outcome == 'success'
         run: pnpm test:runtime
 
       - name: "Build: Angular 19 (application builder)"
         id: build_latest
+        if: always() && steps.build_libs.outcome == 'success'
         run: pnpm build:app-latest
 
       - name: "Build: Angular 16 (webpack builder)"
         id: build_v16
+        if: always() && steps.build_libs.outcome == 'success'
         run: pnpm build:app-v16
 
       - name: "Build: Angular 14 (webpack builder)"
         id: build_v14
+        if: always() && steps.build_libs.outcome == 'success'
         run: pnpm build:app-v14
 
-      - name: Summary
+      - name: Save results
         if: always()
+        shell: bash
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
-          ## pnpm Test Report (${{ matrix.os }}, Node ${{ matrix.node-version }})
+          mkdir -p /tmp/results
+          cat > "/tmp/results/pnpm_${{ matrix.os }}_node${{ matrix.node-version }}.json" << RESULTS
+          {
+            "os": "${{ matrix.os }}",
+            "node": "${{ matrix.node-version }}",
+            "structure": "${{ steps.structure.outcome }}",
+            "build_libs": "${{ steps.build_libs.outcome }}",
+            "runtime": "${{ steps.runtime.outcome }}",
+            "build_latest": "${{ steps.build_latest.outcome }}",
+            "build_v16": "${{ steps.build_v16.outcome }}",
+            "build_v14": "${{ steps.build_v14.outcome }}"
+          }
+          RESULTS
 
-          | Step | Status | Description |
-          |------|--------|-------------|
-          | **pnpm structure** | ${{ steps.structure.outcome == 'success' && 'Pass' || steps.structure.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Validates pnpm workspace structure: isolated linker config, injected vs symlinked deps (`dependenciesMeta.injected`), lodash version declarations per package, rxjs peer dependency configuration, and lockfile correctness. |
-          | **Build libraries** | ${{ steps.build_libs.outcome == 'success' && 'Pass' || steps.build_libs.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Compiles TypeScript libraries (lib-a, lib-b, lib-c) with `tsc`. Required before runtime tests since they import compiled output. |
-          | **Runtime version isolation** | ${{ steps.runtime.outcome == 'success' && 'Pass' || steps.runtime.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Verifies each package loads its own lodash version at runtime (lib-a: 4.17.21, lib-b: 4.17.15, lib-c: 4.17.19, apps: 4.17.20). Checks rxjs peer deps are shared across packages. Tests cross-library imports (lib-a -> lib-b). |
-          | **Angular 19 build** | ${{ steps.build_latest.outcome == 'success' && 'Pass' || steps.build_latest.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 19 app using the application builder (esbuild). Verifies workspace libraries and their isolated dependencies are correctly resolved by Angular's build tooling. Uses standalone components. |
-          | **Angular 16 build** | ${{ steps.build_v16.outcome == 'success' && 'Pass' || steps.build_v16.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 16 app using the browser builder (webpack). Tests backward compatibility with Angular's webpack-based build system. Uses standalone components. |
-          | **Angular 14 build** | ${{ steps.build_v14.outcome == 'success' && 'Pass' || steps.build_v14.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 14 app using the browser builder (webpack). Tests the oldest supported Angular version with NgModule architecture. |
-          EOF
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-pnpm-${{ matrix.os }}-node${{ matrix.node-version }}
+          path: /tmp/results/
 
   bazel:
     strategy:
@@ -103,36 +118,149 @@ jobs:
 
       - name: "Build: libraries (rules_ts)"
         id: build_libs
+        if: always()
         run: bazel build //libs/lib-a:pkg //libs/lib-b:pkg //libs/lib-c:pkg
 
       - name: "Build: Angular 19 (esbuild, Bazel sandbox)"
         id: build_latest
+        if: always() && steps.build_libs.outcome == 'success'
         run: bazel build //apps/app-latest:build
 
       - name: "Build: Angular 14/16 (webpack, Bazel sandbox, Linux only)"
         id: build_v14_v16
-        if: runner.os != 'Windows'
+        if: always() && steps.build_libs.outcome == 'success' && runner.os != 'Windows'
         run: bazel build //apps/app-v14:build //apps/app-v16:build
 
-      - name: Summary
+      - name: Save results
         if: always()
+        shell: bash
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
-          ## Bazel Test Report (${{ matrix.os }})
+          mkdir -p /tmp/results
+          cat > "/tmp/results/bazel_${{ matrix.os }}.json" << RESULTS
+          {
+            "os": "${{ matrix.os }}",
+            "build_libs": "${{ steps.build_libs.outcome }}",
+            "build_latest": "${{ steps.build_latest.outcome }}",
+            "build_v14_v16": "${{ steps.build_v14_v16.outcome }}"
+          }
+          RESULTS
 
-          | Step | Status | Description |
-          |------|--------|-------------|
-          | **Libraries (rules_ts)** | ${{ steps.build_libs.outcome == 'success' && 'Pass' || steps.build_libs.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds workspace libraries using Bazel's rules_ts. Validates that rules_js correctly manages node_modules and TypeScript compilation within the Bazel sandbox. Each library loads a different lodash version, testing dependency isolation through Bazel's package store. |
-          | **Angular 19 (esbuild)** | ${{ steps.build_latest.outcome == 'success' && 'Pass' || steps.build_latest.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 19 using rules_angular + custom esbuild plugin. The plugin (`bazel-sandbox-plugin.js`) resolves packages from the `.aspect_rules_js` package store when standard module resolution fails inside the sandbox. |
-          | **Angular 14/16 (webpack)** | ${{ steps.build_v14_v16.outcome == 'success' && 'Pass' || steps.build_v14_v16.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 14 and 16 using rules_angular + custom webpack plugin. The plugin (`BazelSandboxResolverPlugin`) resolves packages from the `.aspect_rules_js` package store inside the sandbox. Skipped on Windows due to MAX_PATH issues with long `@babel` package names. |
-          EOF
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-bazel-${{ matrix.os }}
+          path: /tmp/results/
 
-  ci:
+  summary:
     needs: [test, bazel]
     runs-on: ubuntu-latest
     if: always()
     name: CI Summary
+
     steps:
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          path: results
+          pattern: results-*
+
+      - name: Generate summary
+        shell: bash
+        run: |
+          icon() {
+            case "$1" in
+              success) echo "✅" ;;
+              failure) echo "❌" ;;
+              skipped) echo "⏭️" ;;
+              cancelled) echo "🚫" ;;
+              *) echo "❓" ;;
+            esac
+          }
+
+          # Read all result files
+          get() {
+            local file="$1" key="$2"
+            grep "\"$key\"" "$file" | sed 's/.*: *"\(.*\)".*/\1/'
+          }
+
+          # --- pnpm results ---
+          cat >> "$GITHUB_STEP_SUMMARY" << 'HEADER'
+          ## pnpm builds
+
+          Validates pnpm workspace dependencies, version isolation, and Angular builds across Node versions.
+
+          | Test | Description | Ubuntu 18 | Ubuntu 20 | Ubuntu 22 | Windows 18 | Windows 20 | Windows 22 |
+          |------|-------------|-----------|-----------|-----------|------------|------------|------------|
+          HEADER
+
+          declare -A pnpm_results
+          for f in results/results-pnpm-*/pnpm_*.json; do
+            [ -f "$f" ] || continue
+            os=$(get "$f" os)
+            node=$(get "$f" node)
+            key="${os}_${node}"
+            pnpm_results["${key}_structure"]=$(get "$f" structure)
+            pnpm_results["${key}_build_libs"]=$(get "$f" build_libs)
+            pnpm_results["${key}_runtime"]=$(get "$f" runtime)
+            pnpm_results["${key}_build_latest"]=$(get "$f" build_latest)
+            pnpm_results["${key}_build_v16"]=$(get "$f" build_v16)
+            pnpm_results["${key}_build_v14"]=$(get "$f" build_v14)
+          done
+
+          pnpm_row() {
+            local step="$1" desc="$2" key="$3"
+            local u18=$(icon "${pnpm_results[ubuntu-latest_18_${key}]}")
+            local u20=$(icon "${pnpm_results[ubuntu-latest_20_${key}]}")
+            local u22=$(icon "${pnpm_results[ubuntu-latest_22_${key}]}")
+            local w18=$(icon "${pnpm_results[windows-latest_18_${key}]}")
+            local w20=$(icon "${pnpm_results[windows-latest_20_${key}]}")
+            local w22=$(icon "${pnpm_results[windows-latest_22_${key}]}")
+            echo "| **${step}** | ${desc} | ${u18} | ${u20} | ${u22} | ${w18} | ${w20} | ${w22} |"
+          }
+
+          {
+            pnpm_row "pnpm structure" "Validates pnpm workspace structure: isolated linker, injected vs symlinked deps, version declarations, peer dep config, lockfile correctness" "structure"
+            pnpm_row "Build libraries" "Compiles TypeScript libraries (lib-a, lib-b, lib-c) with tsc" "build_libs"
+            pnpm_row "Runtime isolation" "Each package loads its own lodash version at runtime (4 unique versions). rxjs peer deps shared across packages. Cross-library imports work" "runtime"
+            pnpm_row "Angular 19" "Application builder (esbuild). Workspace libs with isolated deps resolved correctly. Standalone components" "build_latest"
+            pnpm_row "Angular 16" "Browser builder (webpack). Backward compat with webpack-based build. Standalone components" "build_v16"
+            pnpm_row "Angular 14" "Browser builder (webpack). Oldest supported Angular, NgModule architecture" "build_v14"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # --- Bazel results ---
+          cat >> "$GITHUB_STEP_SUMMARY" << 'HEADER'
+
+          ## Bazel builds
+
+          Validates Bazel sandbox integration with rules_js, rules_ts, and rules_angular.
+
+          | Test | Description | Ubuntu | Windows |
+          |------|-------------|--------|---------|
+          HEADER
+
+          declare -A bazel_results
+          for f in results/results-bazel-*/bazel_*.json; do
+            [ -f "$f" ] || continue
+            os=$(get "$f" os)
+            bazel_results["${os}_build_libs"]=$(get "$f" build_libs)
+            bazel_results["${os}_build_latest"]=$(get "$f" build_latest)
+            bazel_results["${os}_build_v14_v16"]=$(get "$f" build_v14_v16)
+          done
+
+          bazel_row() {
+            local step="$1" desc="$2" key="$3"
+            local u=$(icon "${bazel_results[ubuntu-latest_${key}]}")
+            local w=$(icon "${bazel_results[windows-latest_${key}]}")
+            echo "| **${step}** | ${desc} | ${u} | ${w} |"
+          }
+
+          {
+            bazel_row "Libraries (rules_ts)" "rules_js manages node_modules + TypeScript compilation in sandbox. Each library loads a different lodash version, testing dependency isolation through the package store" "build_libs"
+            bazel_row "Angular 19 (esbuild)" "rules_angular + custom esbuild plugin. Resolves packages from .aspect_rules_js package store when standard resolution fails in sandbox" "build_latest"
+            bazel_row "Angular 14/16 (webpack)" "rules_angular + custom webpack plugin. Resolves packages from .aspect_rules_js package store in sandbox. Skipped on Windows (MAX_PATH)" "build_v14_v16"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Check results
         run: |
           if [ "${{ needs.test.result }}" != "success" ]; then
