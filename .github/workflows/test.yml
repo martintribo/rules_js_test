@@ -126,14 +126,14 @@ jobs:
         if: always() && steps.build_libs.outcome == 'success'
         run: bazel build //apps/app-latest:build
 
-      - name: "Build: Angular 16 (webpack, Bazel sandbox, Linux only)"
+      - name: "Build: Angular 16 (webpack, Bazel sandbox)"
         id: build_v16
-        if: always() && steps.build_libs.outcome == 'success' && runner.os != 'Windows'
+        if: always() && steps.build_libs.outcome == 'success'
         run: bazel build //apps/app-v16:build
 
-      - name: "Build: Angular 14 (webpack, Bazel sandbox, Linux only)"
+      - name: "Build: Angular 14 (webpack, Bazel sandbox)"
         id: build_v14
-        if: always() && steps.build_libs.outcome == 'success' && runner.os != 'Windows'
+        if: always() && steps.build_libs.outcome == 'success'
         run: bazel build //apps/app-v14:build
 
       - name: Save results
