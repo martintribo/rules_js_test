@@ -8,6 +8,8 @@ on:
       - 'apps/**/angular.json'
       - 'apps/**/package.json'
       - 'apps/**/src/**'
+      - 'apps/**/webpack/**'
+      - 'apps/**/esbuild/**'
       - 'scripts/generate-diff-report.sh'
       - 'MODULE.bazel'
 
@@ -26,7 +28,31 @@ jobs:
           chmod +x scripts/generate-diff-report.sh
           ./scripts/generate-diff-report.sh > /tmp/diff-report.md
 
+      - name: Check if diff hash changed
+        id: hash_check
+        run: |
+          # Extract new hash from generated report
+          new_hash=$(tail -1 /tmp/diff-report.md | sed -n 's/.*_diff-hash: \(.*\)_/\1/p')
+
+          # Extract existing hash from README
+          old_hash=""
+          if [ -f README.md ]; then
+            old_hash=$(grep -o '_diff-hash: [a-f0-9]*_' README.md | sed 's/_diff-hash: \(.*\)_/\1/' || echo "")
+          fi
+
+          echo "old_hash=$old_hash"
+          echo "new_hash=$new_hash"
+
+          if [ "$old_hash" = "$new_hash" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Diff hash unchanged, skipping README update."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Diff hash changed ($old_hash -> $new_hash), updating README."
+          fi
+
       - name: Update README.md
+        if: steps.hash_check.outputs.changed == 'true'
         run: |
           if ! grep -q '<!-- BASELINE-DIFF-START -->' README.md; then
             echo "README.md missing diff markers, skipping update."
@@ -48,17 +74,8 @@ jobs:
 
           mv README.md.tmp README.md
 
-      - name: Check for changes
-        id: changes
-        run: |
-          if git diff --quiet README.md; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Commit and push
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.hash_check.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

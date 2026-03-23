@@ -10,12 +10,22 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# If --hash-only is passed, just output the hash of what the report would be
+HASH_ONLY=false
+if [ "${1:-}" = "--hash-only" ]; then
+  HASH_ONLY=true
+fi
+
+# Generate report into a temp file so we can hash it
+REPORT_TMP=$(mktemp)
+trap "rm -f $REPORT_TMP" EXIT
+
+{
+
 echo "# Baseline vs Bazel Diff Report"
 echo ""
 echo "This report shows the differences between vanilla Angular apps (baseline) and"
 echo "the Bazel-integrated versions in this repository."
-echo ""
-echo "_Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')_"
 echo ""
 
 found_any=false
@@ -224,4 +234,18 @@ if grep -q 'module_name = "aspect_rules_js"' "$MODULE_BAZEL" 2>/dev/null; then
       echo ""
     fi
   fi
+fi
+
+} > "$REPORT_TMP"
+
+# Compute hash of the report content
+REPORT_HASH=$(sha256sum "$REPORT_TMP" | cut -d' ' -f1)
+SHORT_HASH="${REPORT_HASH:0:16}"
+
+if [ "$HASH_ONLY" = true ]; then
+  echo "$SHORT_HASH"
+else
+  cat "$REPORT_TMP"
+  echo ""
+  echo "_diff-hash: ${SHORT_HASH}_"
 fi
