@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        node-version: [18, 20, 22]
+        node-version: [22]
 
     runs-on: ${{ matrix.os }}
     name: pnpm (${{ matrix.os }}, Node ${{ matrix.node-version }})
@@ -215,27 +215,23 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" << 'HDR'
           ## CI Test Report
 
-          | | | pnpm | | | | | | Bazel | |
-          |------|-------------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-          | **Test** | **Description** | **U18** | **U20** | **U22** | **W18** | **W20** | **W22** | **Ubuntu** | **Windows** |
+          | | | pnpm | | Bazel | |
+          |------|-------------|:---:|:---:|:---:|:---:|
+          | **Test** | **Description** | **Ubuntu** | **Windows** | **Ubuntu** | **Windows** |
           HDR
 
           row() {
             local name="$1" desc="$2" pkey="$3" bkey="$4"
-            local pu18=$(icon "${P[ubuntu-latest_18_${pkey}]}")
-            local pu20=$(icon "${P[ubuntu-latest_20_${pkey}]}")
-            local pu22=$(icon "${P[ubuntu-latest_22_${pkey}]}")
-            local pw18=$(icon "${P[windows-latest_18_${pkey}]}")
-            local pw20=$(icon "${P[windows-latest_20_${pkey}]}")
-            local pw22=$(icon "${P[windows-latest_22_${pkey}]}")
+            local pu=$(icon "${P[ubuntu-latest_22_${pkey}]}")
+            local pw=$(icon "${P[windows-latest_22_${pkey}]}")
             if [ -n "$bkey" ]; then
               local bu=$(icon "${B[ubuntu-latest_${bkey}]}")
               local bw=$(icon "${B[windows-latest_${bkey}]}")
             else
-              local bu="➖"
-              local bw="➖"
+              local bu=""
+              local bw=""
             fi
-            echo "| **${name}** | ${desc} | ${pu18} | ${pu20} | ${pu22} | ${pw18} | ${pw20} | ${pw22} | ${bu} | ${bw} |"
+            echo "| **${name}** | ${desc} | ${pu} | ${pw} | ${bu} | ${bw} |"
           }
 
           {
