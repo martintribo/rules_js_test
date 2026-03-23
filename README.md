@@ -48,29 +48,7 @@ These plugins resolve packages from the `.aspect_rules_js` package store when st
 
 ## Test results
 
-[Latest CI run](https://github.com/martintribo/rules_js_test/actions/workflows/test.yml)
-
-### pnpm builds
-
-Tested across Node 18, 20, 22 on Ubuntu and Windows.
-
-| Step | What it verifies |
-|------|-----------------|
-| **pnpm structure** | Isolated linker config, injected vs symlinked deps, version declarations, peer dep config, lockfile correctness |
-| **Runtime version isolation** | Each package loads its own lodash version, rxjs peer deps shared, cross-library imports work |
-| **Angular 19 build** | Application builder (esbuild) resolves workspace libs and isolated deps |
-| **Angular 16 build** | Browser builder (webpack) backward compat with workspace libs |
-| **Angular 14 build** | Oldest supported Angular with NgModule architecture |
-
-### Bazel builds
-
-Tested on Ubuntu and Windows (some targets Linux-only due to Windows MAX_PATH limits).
-
-| Step | What it verifies |
-|------|-----------------|
-| **Libraries (rules_ts)** | rules_js manages node_modules + TypeScript compilation in sandbox |
-| **Angular 19 (esbuild)** | Sandbox-aware esbuild plugin resolves packages from package store |
-| **Angular 14/16 (webpack)** | Sandbox-aware webpack plugin resolves packages from package store |
+[Latest CI run](https://github.com/martintribo/rules_js_test/actions/workflows/test.yml) -- each run includes a detailed summary report with test descriptions and results.
 
 ## Baseline diffs
 

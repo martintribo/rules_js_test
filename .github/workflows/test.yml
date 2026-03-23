@@ -33,38 +33,45 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      # Validates pnpm workspace structure: symlinked vs injected dependencies,
-      # version declarations in package.json, peer dependency configuration,
-      # and lockfile correctness.
       - name: "Test: pnpm structure"
+        id: structure
         run: pnpm test:structure
 
-      # Builds TypeScript libraries (lib-a, lib-b, lib-c) with tsc.
-      # Required before runtime tests since they import compiled output.
       - name: Build libraries
+        id: build_libs
         run: pnpm build:libs
 
-      # Verifies that each package loads its own version of lodash at runtime
-      # (version isolation), that rxjs peer dependencies are shared correctly
-      # across packages, and that cross-library imports work.
       - name: "Test: runtime version isolation"
+        id: runtime
         run: pnpm test:runtime
 
-      # Builds Angular 19 app using the application builder (esbuild).
-      # Verifies that workspace libraries and their isolated dependencies
-      # are correctly resolved by Angular's build tooling.
       - name: "Build: Angular 19 (application builder)"
+        id: build_latest
         run: pnpm build:app-latest
 
-      # Builds Angular 16 app using the browser builder (webpack).
-      # Tests backward compatibility with Angular's webpack-based build system.
       - name: "Build: Angular 16 (webpack builder)"
+        id: build_v16
         run: pnpm build:app-v16
 
-      # Builds Angular 14 app using the browser builder (webpack).
-      # Tests the oldest supported Angular version with NgModule architecture.
       - name: "Build: Angular 14 (webpack builder)"
+        id: build_v14
         run: pnpm build:app-v14
+
+      - name: Summary
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
+          ## pnpm Test Report (${{ matrix.os }}, Node ${{ matrix.node-version }})
+
+          | Step | Status | Description |
+          |------|--------|-------------|
+          | **pnpm structure** | ${{ steps.structure.outcome == 'success' && 'Pass' || steps.structure.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Validates pnpm workspace structure: isolated linker config, injected vs symlinked deps (`dependenciesMeta.injected`), lodash version declarations per package, rxjs peer dependency configuration, and lockfile correctness. |
+          | **Build libraries** | ${{ steps.build_libs.outcome == 'success' && 'Pass' || steps.build_libs.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Compiles TypeScript libraries (lib-a, lib-b, lib-c) with `tsc`. Required before runtime tests since they import compiled output. |
+          | **Runtime version isolation** | ${{ steps.runtime.outcome == 'success' && 'Pass' || steps.runtime.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Verifies each package loads its own lodash version at runtime (lib-a: 4.17.21, lib-b: 4.17.15, lib-c: 4.17.19, apps: 4.17.20). Checks rxjs peer deps are shared across packages. Tests cross-library imports (lib-a -> lib-b). |
+          | **Angular 19 build** | ${{ steps.build_latest.outcome == 'success' && 'Pass' || steps.build_latest.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 19 app using the application builder (esbuild). Verifies workspace libraries and their isolated dependencies are correctly resolved by Angular's build tooling. Uses standalone components. |
+          | **Angular 16 build** | ${{ steps.build_v16.outcome == 'success' && 'Pass' || steps.build_v16.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 16 app using the browser builder (webpack). Tests backward compatibility with Angular's webpack-based build system. Uses standalone components. |
+          | **Angular 14 build** | ${{ steps.build_v14.outcome == 'success' && 'Pass' || steps.build_v14.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 14 app using the browser builder (webpack). Tests the oldest supported Angular version with NgModule architecture. |
+          EOF
 
   bazel:
     strategy:
@@ -94,25 +101,31 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      # Builds workspace libraries using Bazel's rules_ts.
-      # Validates that rules_js correctly manages node_modules and
-      # TypeScript compilation within the Bazel sandbox.
       - name: "Build: libraries (rules_ts)"
+        id: build_libs
         run: bazel build //libs/lib-a:pkg //libs/lib-b:pkg //libs/lib-c:pkg
 
-      # Builds Angular 19 using rules_angular + custom esbuild plugin.
-      # The esbuild plugin (bazel-sandbox-plugin.js) resolves packages
-      # from the .aspect_rules_js package store inside the sandbox.
       - name: "Build: Angular 19 (esbuild, Bazel sandbox)"
+        id: build_latest
         run: bazel build //apps/app-latest:build
 
-      # Builds Angular 14 and 16 using rules_angular + custom webpack plugin.
-      # The webpack plugin (BazelSandboxResolverPlugin) resolves packages
-      # from the .aspect_rules_js package store inside the sandbox.
-      # Skipped on Windows due to MAX_PATH issues with long @babel package names.
       - name: "Build: Angular 14/16 (webpack, Bazel sandbox, Linux only)"
+        id: build_v14_v16
         if: runner.os != 'Windows'
         run: bazel build //apps/app-v14:build //apps/app-v16:build
+
+      - name: Summary
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
+          ## Bazel Test Report (${{ matrix.os }})
+
+          | Step | Status | Description |
+          |------|--------|-------------|
+          | **Libraries (rules_ts)** | ${{ steps.build_libs.outcome == 'success' && 'Pass' || steps.build_libs.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds workspace libraries using Bazel's rules_ts. Validates that rules_js correctly manages node_modules and TypeScript compilation within the Bazel sandbox. Each library loads a different lodash version, testing dependency isolation through Bazel's package store. |
+          | **Angular 19 (esbuild)** | ${{ steps.build_latest.outcome == 'success' && 'Pass' || steps.build_latest.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 19 using rules_angular + custom esbuild plugin. The plugin (`bazel-sandbox-plugin.js`) resolves packages from the `.aspect_rules_js` package store when standard module resolution fails inside the sandbox. |
+          | **Angular 14/16 (webpack)** | ${{ steps.build_v14_v16.outcome == 'success' && 'Pass' || steps.build_v14_v16.outcome == 'skipped' && 'Skipped' || 'Fail' }} | Builds Angular 14 and 16 using rules_angular + custom webpack plugin. The plugin (`BazelSandboxResolverPlugin`) resolves packages from the `.aspect_rules_js` package store inside the sandbox. Skipped on Windows due to MAX_PATH issues with long `@babel` package names. |
+          EOF
 
   ci:
     needs: [test, bazel]
