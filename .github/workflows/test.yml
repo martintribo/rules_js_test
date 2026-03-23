@@ -239,12 +239,12 @@ jobs:
           }
 
           {
-            row "pnpm structure" "Isolated linker, injected vs symlinked deps, version declarations, peer dep config, lockfile" "structure" ""
-            row "Build libraries" "Compile TypeScript libraries (lib-a, lib-b, lib-c). Bazel uses rules_ts in sandbox" "build_libs" "build_libs"
-            row "Runtime isolation" "Each package loads its own lodash version. rxjs peer deps shared. Cross-library imports" "runtime" ""
-            row "Angular 19" "Application builder (esbuild). Bazel uses sandbox-aware esbuild plugin" "build_latest" "build_latest"
-            row "Angular 16" "Browser builder (webpack). Bazel uses sandbox-aware webpack plugin. Bazel skipped on Windows (MAX_PATH)" "build_v16" "build_v16"
-            row "Angular 14" "Browser builder (webpack, NgModule). Bazel uses sandbox-aware webpack plugin. Bazel skipped on Windows (MAX_PATH)" "build_v14" "build_v14"
+            row "pnpm structure" "Verify pnpm isolated linker, injected deps, and lockfile correctness" "structure" ""
+            row "Build libraries" "Compile lib-a, lib-b, lib-c with TypeScript" "build_libs" "build_libs"
+            row "Runtime isolation" "Each package loads its own lodash version, rxjs peer deps shared" "runtime" ""
+            row "Angular 19" "Build Angular 19 app with esbuild application builder" "build_latest" "build_latest"
+            row "Angular 16" "Build Angular 16 app with webpack browser builder" "build_v16" "build_v16"
+            row "Angular 14" "Build Angular 14 app with webpack browser builder (NgModule)" "build_v14" "build_v14"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check results
