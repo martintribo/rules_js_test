@@ -1,0 +1,66 @@
+name: Update README with Baseline Diffs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**/baseline/**'
+      - 'apps/**/angular.json'
+      - 'apps/**/package.json'
+      - 'apps/**/src/**'
+      - 'scripts/generate-diff-report.sh'
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate diff report
+        run: |
+          chmod +x scripts/generate-diff-report.sh
+          ./scripts/generate-diff-report.sh > /tmp/diff-report.md
+
+      - name: Update README.md
+        run: |
+          if ! grep -q '<!-- BASELINE-DIFF-START -->' README.md; then
+            echo "README.md missing diff markers, skipping update."
+            exit 0
+          fi
+
+          # Extract content before and after the markers
+          head_content=$(sed '/<!-- BASELINE-DIFF-START -->/q' README.md)
+          tail_content=$(sed -n '/<!-- BASELINE-DIFF-END -->/,$p' README.md)
+
+          # Reassemble with new diff content
+          {
+            echo "$head_content"
+            echo ""
+            cat /tmp/diff-report.md
+            echo ""
+            echo "$tail_content"
+          } > README.md.tmp
+
+          mv README.md.tmp README.md
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet README.md; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: update baseline diff report in README"
+          git push
