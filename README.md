@@ -29,7 +29,7 @@ apps and their Bazel-integrated versions.
 This report shows the differences between vanilla Angular apps (baseline) and
 the Bazel-integrated versions in this repository.
 
-_Generated on 2026-03-23 20:42:55 UTC_
+_Generated on 2026-03-23 20:50:13 UTC_
 
 ---
 
@@ -189,6 +189,50 @@ _Generated on 2026-03-23 20:42:55 UTC_
      "@angular-devkit/build-angular": "^16.2.0",
      "@angular/cli": "^16.2.0",
      "@angular/compiler-cli": "^16.2.0",
+```
+
+
+---
+
+## rules_js fork changes
+
+This project uses a fork of [`aspect_rules_js`](https://github.com/aspect-build/rules_js)
+at [`9a1379b4d645`](https://github.com/martintribo/rules_js.git/commit/9a1379b4d64502ff277e2221ce4ce1105191e8e5).
+
+Changes compared to upstream:
+
+### Changed files
+
+- `js/private/js_binary.sh.tpl`
+
+### Diff
+
+```diff
+diff --git a/js/private/js_binary.sh.tpl b/js/private/js_binary.sh.tpl
+index 5d0234cb..2a95f511 100644
+--- a/js/private/js_binary.sh.tpl
++++ b/js/private/js_binary.sh.tpl
+@@ -328,10 +328,16 @@ fi
+ # Change directory to user specified package if set
+ if [ "${JS_BINARY__CHDIR:-}" ]; then
+     logf_debug "changing directory to user specified package %s" "$JS_BINARY__CHDIR"
+-    case "$JS_BINARY__CHDIR" in
+-    external/*) cd "$(resolve_execroot_bin_path "$JS_BINARY__CHDIR")" ;;
+-    *) cd "$JS_BINARY__CHDIR" ;;
+-    esac
++    # When using execroot entry point, chdir to bin path so node_modules resolution works
++    # (node_modules is at bazel-out/.../bin/node_modules, not at the source root)
++    if [ "${JS_BINARY__USE_EXECROOT_ENTRY_POINT:-}" ]; then
++        cd "$(resolve_execroot_bin_path "$JS_BINARY__CHDIR")"
++    else
++        case "$JS_BINARY__CHDIR" in
++        external/*) cd "$(resolve_execroot_bin_path "$JS_BINARY__CHDIR")" ;;
++        *) cd "$JS_BINARY__CHDIR" ;;
++        esac
++    fi
+ fi
+ 
+ # Gather node options
 ```
 
 
