@@ -126,10 +126,15 @@ jobs:
         if: always() && steps.build_libs.outcome == 'success'
         run: bazel build //apps/app-latest:build
 
-      - name: "Build: Angular 14/16 (webpack, Bazel sandbox, Linux only)"
-        id: build_v14_v16
+      - name: "Build: Angular 16 (webpack, Bazel sandbox, Linux only)"
+        id: build_v16
         if: always() && steps.build_libs.outcome == 'success' && runner.os != 'Windows'
-        run: bazel build //apps/app-v14:build //apps/app-v16:build
+        run: bazel build //apps/app-v16:build
+
+      - name: "Build: Angular 14 (webpack, Bazel sandbox, Linux only)"
+        id: build_v14
+        if: always() && steps.build_libs.outcome == 'success' && runner.os != 'Windows'
+        run: bazel build //apps/app-v14:build
 
       - name: Save results
         if: always()
@@ -141,7 +146,8 @@ jobs:
             "os": "${{ matrix.os }}",
             "build_libs": "${{ steps.build_libs.outcome }}",
             "build_latest": "${{ steps.build_latest.outcome }}",
-            "build_v14_v16": "${{ steps.build_v14_v16.outcome }}"
+            "build_v16": "${{ steps.build_v16.outcome }}",
+            "build_v14": "${{ steps.build_v14.outcome }}"
           }
           RESULTS
 
@@ -174,91 +180,71 @@ jobs:
               failure) echo "❌" ;;
               skipped) echo "⏭️" ;;
               cancelled) echo "🚫" ;;
-              *) echo "❓" ;;
+              *) echo "➖" ;;
             esac
           }
 
-          # Read all result files
           get() {
             local file="$1" key="$2"
             grep "\"$key\"" "$file" | sed 's/.*: *"\(.*\)".*/\1/'
           }
 
-          # --- pnpm results ---
-          cat >> "$GITHUB_STEP_SUMMARY" << 'HEADER'
-          ## pnpm builds
-
-          Validates pnpm workspace dependencies, version isolation, and Angular builds across Node versions.
-
-          | Test | Description | Ubuntu 18 | Ubuntu 20 | Ubuntu 22 | Windows 18 | Windows 20 | Windows 22 |
-          |------|-------------|-----------|-----------|-----------|------------|------------|------------|
-          HEADER
-
-          declare -A pnpm_results
+          # Load pnpm results
+          declare -A P
           for f in results/results-pnpm-*/pnpm_*.json; do
             [ -f "$f" ] || continue
             os=$(get "$f" os)
             node=$(get "$f" node)
-            key="${os}_${node}"
-            pnpm_results["${key}_structure"]=$(get "$f" structure)
-            pnpm_results["${key}_build_libs"]=$(get "$f" build_libs)
-            pnpm_results["${key}_runtime"]=$(get "$f" runtime)
-            pnpm_results["${key}_build_latest"]=$(get "$f" build_latest)
-            pnpm_results["${key}_build_v16"]=$(get "$f" build_v16)
-            pnpm_results["${key}_build_v14"]=$(get "$f" build_v14)
+            k="${os}_${node}"
+            for step in structure build_libs runtime build_latest build_v16 build_v14; do
+              P["${k}_${step}"]=$(get "$f" "$step")
+            done
           done
 
-          pnpm_row() {
-            local step="$1" desc="$2" key="$3"
-            local u18=$(icon "${pnpm_results[ubuntu-latest_18_${key}]}")
-            local u20=$(icon "${pnpm_results[ubuntu-latest_20_${key}]}")
-            local u22=$(icon "${pnpm_results[ubuntu-latest_22_${key}]}")
-            local w18=$(icon "${pnpm_results[windows-latest_18_${key}]}")
-            local w20=$(icon "${pnpm_results[windows-latest_20_${key}]}")
-            local w22=$(icon "${pnpm_results[windows-latest_22_${key}]}")
-            echo "| **${step}** | ${desc} | ${u18} | ${u20} | ${u22} | ${w18} | ${w20} | ${w22} |"
-          }
-
-          {
-            pnpm_row "pnpm structure" "Validates pnpm workspace structure: isolated linker, injected vs symlinked deps, version declarations, peer dep config, lockfile correctness" "structure"
-            pnpm_row "Build libraries" "Compiles TypeScript libraries (lib-a, lib-b, lib-c) with tsc" "build_libs"
-            pnpm_row "Runtime isolation" "Each package loads its own lodash version at runtime (4 unique versions). rxjs peer deps shared across packages. Cross-library imports work" "runtime"
-            pnpm_row "Angular 19" "Application builder (esbuild). Workspace libs with isolated deps resolved correctly. Standalone components" "build_latest"
-            pnpm_row "Angular 16" "Browser builder (webpack). Backward compat with webpack-based build. Standalone components" "build_v16"
-            pnpm_row "Angular 14" "Browser builder (webpack). Oldest supported Angular, NgModule architecture" "build_v14"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          # --- Bazel results ---
-          cat >> "$GITHUB_STEP_SUMMARY" << 'HEADER'
-
-          ## Bazel builds
-
-          Validates Bazel sandbox integration with rules_js, rules_ts, and rules_angular.
-
-          | Test | Description | Ubuntu | Windows |
-          |------|-------------|--------|---------|
-          HEADER
-
-          declare -A bazel_results
+          # Load bazel results
+          declare -A B
           for f in results/results-bazel-*/bazel_*.json; do
             [ -f "$f" ] || continue
             os=$(get "$f" os)
-            bazel_results["${os}_build_libs"]=$(get "$f" build_libs)
-            bazel_results["${os}_build_latest"]=$(get "$f" build_latest)
-            bazel_results["${os}_build_v14_v16"]=$(get "$f" build_v14_v16)
+            for step in build_libs build_latest build_v16 build_v14; do
+              B["${os}_${step}"]=$(get "$f" "$step")
+            done
           done
 
-          bazel_row() {
-            local step="$1" desc="$2" key="$3"
-            local u=$(icon "${bazel_results[ubuntu-latest_${key}]}")
-            local w=$(icon "${bazel_results[windows-latest_${key}]}")
-            echo "| **${step}** | ${desc} | ${u} | ${w} |"
+          # Header
+          cat >> "$GITHUB_STEP_SUMMARY" << 'HDR'
+          ## CI Test Report
+
+          | | | pnpm | | | | | | Bazel | |
+          |------|-------------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+          | **Test** | **Description** | **U18** | **U20** | **U22** | **W18** | **W20** | **W22** | **Ubuntu** | **Windows** |
+          HDR
+
+          row() {
+            local name="$1" desc="$2" pkey="$3" bkey="$4"
+            local pu18=$(icon "${P[ubuntu-latest_18_${pkey}]}")
+            local pu20=$(icon "${P[ubuntu-latest_20_${pkey}]}")
+            local pu22=$(icon "${P[ubuntu-latest_22_${pkey}]}")
+            local pw18=$(icon "${P[windows-latest_18_${pkey}]}")
+            local pw20=$(icon "${P[windows-latest_20_${pkey}]}")
+            local pw22=$(icon "${P[windows-latest_22_${pkey}]}")
+            if [ -n "$bkey" ]; then
+              local bu=$(icon "${B[ubuntu-latest_${bkey}]}")
+              local bw=$(icon "${B[windows-latest_${bkey}]}")
+            else
+              local bu="➖"
+              local bw="➖"
+            fi
+            echo "| **${name}** | ${desc} | ${pu18} | ${pu20} | ${pu22} | ${pw18} | ${pw20} | ${pw22} | ${bu} | ${bw} |"
           }
 
           {
-            bazel_row "Libraries (rules_ts)" "rules_js manages node_modules + TypeScript compilation in sandbox. Each library loads a different lodash version, testing dependency isolation through the package store" "build_libs"
-            bazel_row "Angular 19 (esbuild)" "rules_angular + custom esbuild plugin. Resolves packages from .aspect_rules_js package store when standard resolution fails in sandbox" "build_latest"
-            bazel_row "Angular 14/16 (webpack)" "rules_angular + custom webpack plugin. Resolves packages from .aspect_rules_js package store in sandbox. Skipped on Windows (MAX_PATH)" "build_v14_v16"
+            row "pnpm structure" "Isolated linker, injected vs symlinked deps, version declarations, peer dep config, lockfile" "structure" ""
+            row "Build libraries" "Compile TypeScript libraries (lib-a, lib-b, lib-c). Bazel uses rules_ts in sandbox" "build_libs" "build_libs"
+            row "Runtime isolation" "Each package loads its own lodash version. rxjs peer deps shared. Cross-library imports" "runtime" ""
+            row "Angular 19" "Application builder (esbuild). Bazel uses sandbox-aware esbuild plugin" "build_latest" "build_latest"
+            row "Angular 16" "Browser builder (webpack). Bazel uses sandbox-aware webpack plugin. Bazel skipped on Windows (MAX_PATH)" "build_v16" "build_v16"
+            row "Angular 14" "Browser builder (webpack, NgModule). Bazel uses sandbox-aware webpack plugin. Bazel skipped on Windows (MAX_PATH)" "build_v14" "build_v14"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check results
