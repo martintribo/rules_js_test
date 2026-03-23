@@ -1,4 +1,4 @@
-name: Update README with Baseline Diffs
+name: Update Baseline Diff Report
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
       - 'MODULE.bazel'
 
 jobs:
-  update-readme:
+  update-diff-report:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,10 +34,10 @@ jobs:
           # Extract new hash from generated report
           new_hash=$(tail -1 /tmp/diff-report.md | sed -n 's/.*_diff-hash: \(.*\)_/\1/p')
 
-          # Extract existing hash from README
+          # Extract existing hash from DIFF_REPORT.md
           old_hash=""
-          if [ -f README.md ]; then
-            old_hash=$(grep -o '_diff-hash: [a-f0-9]*_' README.md | sed 's/_diff-hash: \(.*\)_/\1/' || echo "")
+          if [ -f DIFF_REPORT.md ]; then
+            old_hash=$(grep -o '_diff-hash: [a-f0-9]*_' DIFF_REPORT.md | sed 's/_diff-hash: \(.*\)_/\1/' || echo "")
           fi
 
           echo "old_hash=$old_hash"
@@ -45,23 +45,23 @@ jobs:
 
           if [ "$old_hash" = "$new_hash" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Diff hash unchanged, skipping README update."
+            echo "Diff hash unchanged, skipping update."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Diff hash changed ($old_hash -> $new_hash), updating README."
+            echo "Diff hash changed ($old_hash -> $new_hash), updating DIFF_REPORT.md."
           fi
 
-      - name: Update README.md
+      - name: Update DIFF_REPORT.md
         if: steps.hash_check.outputs.changed == 'true'
         run: |
-          if ! grep -q '<!-- BASELINE-DIFF-START -->' README.md; then
-            echo "README.md missing diff markers, skipping update."
+          if ! grep -q '<!-- BASELINE-DIFF-START -->' DIFF_REPORT.md; then
+            echo "DIFF_REPORT.md missing diff markers, skipping update."
             exit 0
           fi
 
           # Extract content before and after the markers
-          head_content=$(sed '/<!-- BASELINE-DIFF-START -->/q' README.md)
-          tail_content=$(sed -n '/<!-- BASELINE-DIFF-END -->/,$p' README.md)
+          head_content=$(sed '/<!-- BASELINE-DIFF-START -->/q' DIFF_REPORT.md)
+          tail_content=$(sed -n '/<!-- BASELINE-DIFF-END -->/,$p' DIFF_REPORT.md)
 
           # Reassemble with new diff content
           {
@@ -70,15 +70,15 @@ jobs:
             cat /tmp/diff-report.md
             echo ""
             echo "$tail_content"
-          } > README.md.tmp
+          } > DIFF_REPORT.md.tmp
 
-          mv README.md.tmp README.md
+          mv DIFF_REPORT.md.tmp DIFF_REPORT.md
 
       - name: Commit and push
         if: steps.hash_check.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git commit -m "docs: update baseline diff report in README"
+          git add DIFF_REPORT.md
+          git commit -m "docs: update baseline diff report"
           git push

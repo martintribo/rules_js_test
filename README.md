@@ -1,239 +1,79 @@
 # rules_js_test
 
-Test repository for Angular apps with Bazel integration using rules_js.
+[![CI](https://github.com/martintribo/rules_js_test/actions/workflows/test.yml/badge.svg)](https://github.com/martintribo/rules_js_test/actions/workflows/test.yml)
 
-## Overview
+Test repository for Angular apps with Bazel integration using [rules_js](https://github.com/aspect-build/rules_js).
 
-This repository contains Angular applications (v14, v16, v19) configured to build with Bazel.
-Each app under `apps/` has a `baseline/` directory containing the vanilla Angular equivalent
-(without any Bazel customizations), making it easy to see exactly what changes are needed
-for Bazel integration.
+## What this tests
 
-## Apps
+This repo validates that [pnpm](https://pnpm.io/) workspace dependencies with version isolation work correctly across multiple Angular versions, both with standard `ng build` and with [Bazel](https://bazel.build/) via `rules_js` + `rules_angular`.
 
-| App | Angular Version | Builder (Bazel) | Builder (Vanilla) |
-|-----|----------------|-----------------|-------------------|
-| `app-latest` | 19 | `@angular-builders/custom-esbuild:application` | `@angular/build:application` |
-| `app-v16` | 16 | `@angular-builders/custom-webpack:browser` | `@angular-devkit/build-angular:browser` |
-| `app-v14` | 14 | `@angular-builders/custom-webpack:browser` | `@angular-devkit/build-angular:browser` |
+### Dependency version isolation
 
-## Baseline Diff Report
+Each package declares a different version of `lodash` to verify that pnpm's isolated linker resolves the correct version per-package at runtime:
 
-The following report is auto-generated showing the differences between vanilla Angular
-apps and their Bazel-integrated versions.
+| Package | lodash version |
+|---------|---------------|
+| `lib-a` | 4.17.21 |
+| `lib-b` | 4.17.15 |
+| `lib-c` | 4.17.19 |
+| `app-*` | 4.17.20 |
 
-<!-- BASELINE-DIFF-START -->
+### Peer dependency sharing
 
-# Baseline vs Bazel Diff Report
+`lib-a`, `lib-b`, and `lib-c` declare `rxjs` as a peer dependency. The tests verify that all packages share the same `rxjs` instance provided by the consuming app.
 
-This report shows the differences between vanilla Angular apps (baseline) and
-the Bazel-integrated versions in this repository.
+### Injected vs symlinked workspace dependencies
 
----
+`lib-a` uses `dependenciesMeta.injected: true` for its dependency on `lib-b`, while `lib-c` uses a normal symlink. The structure tests verify both resolution strategies work.
 
-## app-latest
+### Angular build compatibility
 
-### Files only in Bazel version (added for Bazel integration)
+The same libraries are built into Angular apps across three versions to verify the full toolchain works:
 
-- `esbuild/bazel-sandbox-plugin.js`
-- `ng_config_no_symlinks.bzl`
+| App | Angular | Builder | Notes |
+|-----|---------|---------|-------|
+| `app-latest` | 19 | `@angular/build:application` (esbuild) | Standalone components |
+| `app-v16` | 16 | `@angular-devkit/build-angular:browser` (webpack) | Standalone components |
+| `app-v14` | 14 | `@angular-devkit/build-angular:browser` (webpack) | NgModule architecture |
 
-### Modified files
+### Bazel sandbox compatibility
 
-#### `angular.json`
+When building with Bazel, Angular's build tools run inside an isolated sandbox where normal `node_modules` symlinks don't work. Each app includes a sandbox-aware resolver plugin:
 
-```diff
---- baseline/angular.json
-+++ bazel/angular.json
-@@ -10,7 +10,7 @@
-       "prefix": "app",
-       "architect": {
-         "build": {
--          "builder": "@angular/build:application",
-+          "builder": "@angular-builders/custom-esbuild:application",
-           "options": {
-             "outputPath": "dist/app-latest",
-             "index": "src/index.html",
-@@ -24,7 +24,8 @@
-               }
-             ],
-             "styles": ["src/styles.css"],
--            "scripts": []
-+            "scripts": [],
-+            "plugins": ["./esbuild/bazel-sandbox-plugin.js"]
-           },
-           "configurations": {
-             "production": {
-```
+- **app-latest**: esbuild plugin (`esbuild/bazel-sandbox-plugin.js`)
+- **app-v14/v16**: webpack plugin (`webpack/bazel-sandbox-resolver.js`)
 
-#### `package.json`
+These plugins resolve packages from the `.aspect_rules_js` package store when standard resolution fails inside the sandbox.
 
-```diff
---- baseline/package.json
-+++ bazel/package.json
-@@ -27,6 +27,7 @@
-     "@angular/build": "^19.0.0",
-     "@angular/cli": "^19.0.0",
-     "@angular/compiler-cli": "^19.0.0",
-+    "@angular-builders/custom-esbuild": "^19.0.0",
-     "@types/lodash": "^4.17.0",
-     "typescript": "~5.6.0"
-   }
-```
+## Test results
 
----
+[Latest CI run](https://github.com/martintribo/rules_js_test/actions/workflows/test.yml)
 
-## app-v14
+### pnpm builds
 
-### Files only in Bazel version (added for Bazel integration)
+Tested across Node 18, 20, 22 on Ubuntu and Windows.
 
-- `webpack/bazel-sandbox-resolver.js`
-- `webpack/webpack.config.js`
+| Step | What it verifies |
+|------|-----------------|
+| **pnpm structure** | Isolated linker config, injected vs symlinked deps, version declarations, peer dep config, lockfile correctness |
+| **Runtime version isolation** | Each package loads its own lodash version, rxjs peer deps shared, cross-library imports work |
+| **Angular 19 build** | Application builder (esbuild) resolves workspace libs and isolated deps |
+| **Angular 16 build** | Browser builder (webpack) backward compat with workspace libs |
+| **Angular 14 build** | Oldest supported Angular with NgModule architecture |
 
-### Modified files
+### Bazel builds
 
-#### `angular.json`
+Tested on Ubuntu and Windows (some targets Linux-only due to Windows MAX_PATH limits).
 
-```diff
---- baseline/angular.json
-+++ bazel/angular.json
-@@ -10,7 +10,7 @@
-       "prefix": "app",
-       "architect": {
-         "build": {
--          "builder": "@angular-devkit/build-angular:browser",
-+          "builder": "@angular-builders/custom-webpack:browser",
-           "options": {
-             "outputPath": "dist/app-v14",
-             "index": "src/index.html",
-@@ -19,7 +19,10 @@
-             "tsConfig": "tsconfig.app.json",
-             "assets": ["src/assets"],
-             "styles": ["src/styles.css"],
--            "scripts": []
-+            "scripts": [],
-+            "customWebpackConfig": {
-+              "path": "./webpack/webpack.config.js"
-+            }
-           },
-           "configurations": {
-             "production": {
-```
+| Step | What it verifies |
+|------|-----------------|
+| **Libraries (rules_ts)** | rules_js manages node_modules + TypeScript compilation in sandbox |
+| **Angular 19 (esbuild)** | Sandbox-aware esbuild plugin resolves packages from package store |
+| **Angular 14/16 (webpack)** | Sandbox-aware webpack plugin resolves packages from package store |
 
-#### `package.json`
+## Baseline diffs
 
-```diff
---- baseline/package.json
-+++ bazel/package.json
-@@ -24,6 +24,7 @@
-     "zone.js": "~0.11.8"
-   },
-   "devDependencies": {
-+    "@angular-builders/custom-webpack": "^14.1.0",
-     "@angular-devkit/build-angular": "^14.2.0",
-     "@angular/cli": "^14.2.0",
-     "@angular/compiler-cli": "^14.3.0",
-```
+Each app has a `baseline/` directory containing the vanilla Angular equivalent (no Bazel customizations). See [DIFF_REPORT.md](DIFF_REPORT.md) for the auto-generated diff showing exactly what changes are needed for Bazel integration.
 
----
-
-## app-v16
-
-### Files only in Bazel version (added for Bazel integration)
-
-- `webpack/bazel-sandbox-resolver.js`
-- `webpack/webpack.config.js`
-
-### Modified files
-
-#### `angular.json`
-
-```diff
---- baseline/angular.json
-+++ bazel/angular.json
-@@ -10,7 +10,7 @@
-       "prefix": "app",
-       "architect": {
-         "build": {
--          "builder": "@angular-devkit/build-angular:browser",
-+          "builder": "@angular-builders/custom-webpack:browser",
-           "options": {
-             "outputPath": "dist/app-v16",
-             "index": "src/index.html",
-@@ -19,7 +19,10 @@
-             "tsConfig": "tsconfig.app.json",
-             "assets": ["src/assets"],
-             "styles": ["src/styles.css"],
--            "scripts": []
-+            "scripts": [],
-+            "customWebpackConfig": {
-+              "path": "./webpack/webpack.config.js"
-+            }
-           },
-           "configurations": {
-             "production": {
-```
-
-#### `package.json`
-
-```diff
---- baseline/package.json
-+++ bazel/package.json
-@@ -24,6 +24,7 @@
-     "zone.js": "~0.13.0"
-   },
-   "devDependencies": {
-+    "@angular-builders/custom-webpack": "^16.0.0",
-     "@angular-devkit/build-angular": "^16.2.0",
-     "@angular/cli": "^16.2.0",
-     "@angular/compiler-cli": "^16.2.0",
-```
-
-
----
-
-## rules_js fork changes
-
-This project uses a fork of [`aspect_rules_js`](https://github.com/aspect-build/rules_js)
-at [`9a1379b4d645`](https://github.com/martintribo/rules_js.git/commit/9a1379b4d64502ff277e2221ce4ce1105191e8e5).
-
-Changes compared to upstream:
-
-### Changed files
-
-- `js/private/js_binary.sh.tpl`
-
-### Diff
-
-```diff
-diff --git a/js/private/js_binary.sh.tpl b/js/private/js_binary.sh.tpl
-index 5d0234cb..2a95f511 100644
---- a/js/private/js_binary.sh.tpl
-+++ b/js/private/js_binary.sh.tpl
-@@ -328,10 +328,16 @@ fi
- # Change directory to user specified package if set
- if [ "${JS_BINARY__CHDIR:-}" ]; then
-     logf_debug "changing directory to user specified package %s" "$JS_BINARY__CHDIR"
--    case "$JS_BINARY__CHDIR" in
--    external/*) cd "$(resolve_execroot_bin_path "$JS_BINARY__CHDIR")" ;;
--    *) cd "$JS_BINARY__CHDIR" ;;
--    esac
-+    # When using execroot entry point, chdir to bin path so node_modules resolution works
-+    # (node_modules is at bazel-out/.../bin/node_modules, not at the source root)
-+    if [ "${JS_BINARY__USE_EXECROOT_ENTRY_POINT:-}" ]; then
-+        cd "$(resolve_execroot_bin_path "$JS_BINARY__CHDIR")"
-+    else
-+        case "$JS_BINARY__CHDIR" in
-+        external/*) cd "$(resolve_execroot_bin_path "$JS_BINARY__CHDIR")" ;;
-+        *) cd "$JS_BINARY__CHDIR" ;;
-+        esac
-+    fi
- fi
- 
- # Gather node options
-```
-
-
-_diff-hash: 13b911c86d928982_
-
-<!-- BASELINE-DIFF-END -->
+This project also uses a [fork of rules_js](https://github.com/martintribo/rules_js) with a fix to `js_binary.sh.tpl` for correct `chdir` behavior when `JS_BINARY__USE_EXECROOT_ENTRY_POINT` is set. The fork diff is included in the report.

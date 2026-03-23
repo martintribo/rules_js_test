@@ -1,4 +1,4 @@
-name: Test
+name: CI
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
         node-version: [18, 20, 22]
 
     runs-on: ${{ matrix.os }}
-    name: Test (${{ matrix.os }}, Node ${{ matrix.node-version }})
+    name: pnpm (${{ matrix.os }}, Node ${{ matrix.node-version }})
 
     steps:
       - name: Checkout
@@ -23,7 +23,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        # Version is read from package.json "packageManager" field
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,22 +33,37 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Run structure tests
+      # Validates pnpm workspace structure: symlinked vs injected dependencies,
+      # version declarations in package.json, peer dependency configuration,
+      # and lockfile correctness.
+      - name: "Test: pnpm structure"
         run: pnpm test:structure
 
+      # Builds TypeScript libraries (lib-a, lib-b, lib-c) with tsc.
+      # Required before runtime tests since they import compiled output.
       - name: Build libraries
         run: pnpm build:libs
 
-      - name: Run runtime tests
+      # Verifies that each package loads its own version of lodash at runtime
+      # (version isolation), that rxjs peer dependencies are shared correctly
+      # across packages, and that cross-library imports work.
+      - name: "Test: runtime version isolation"
         run: pnpm test:runtime
 
-      - name: Build Angular 19 app (application builder)
+      # Builds Angular 19 app using the application builder (esbuild).
+      # Verifies that workspace libraries and their isolated dependencies
+      # are correctly resolved by Angular's build tooling.
+      - name: "Build: Angular 19 (application builder)"
         run: pnpm build:app-latest
 
-      - name: Build Angular 16 app (esbuild builder)
+      # Builds Angular 16 app using the browser builder (webpack).
+      # Tests backward compatibility with Angular's webpack-based build system.
+      - name: "Build: Angular 16 (webpack builder)"
         run: pnpm build:app-v16
 
-      - name: Build Angular 14 app (webpack builder)
+      # Builds Angular 14 app using the browser builder (webpack).
+      # Tests the oldest supported Angular version with NgModule architecture.
+      - name: "Build: Angular 14 (webpack builder)"
         run: pnpm build:app-v14
 
   bazel:
@@ -80,28 +94,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build libraries with Bazel
+      # Builds workspace libraries using Bazel's rules_ts.
+      # Validates that rules_js correctly manages node_modules and
+      # TypeScript compilation within the Bazel sandbox.
+      - name: "Build: libraries (rules_ts)"
         run: bazel build //libs/lib-a:pkg //libs/lib-b:pkg //libs/lib-c:pkg
 
-      # All Angular apps use custom sandbox-aware resolver plugins:
-      # - app-latest: esbuild plugin (bazel-sandbox-plugin.js)
-      # - app-v14/v16: webpack plugin (BazelSandboxResolverPlugin)
-      # These plugins find packages in the Bazel package store when symlinks fail
-      - name: Build Angular app-latest with Bazel
+      # Builds Angular 19 using rules_angular + custom esbuild plugin.
+      # The esbuild plugin (bazel-sandbox-plugin.js) resolves packages
+      # from the .aspect_rules_js package store inside the sandbox.
+      - name: "Build: Angular 19 (esbuild, Bazel sandbox)"
         run: bazel build //apps/app-latest:build
 
-      # Angular 14/16 have Windows MAX_PATH issues with @babel packages
-      - name: Build Angular 14/16 apps with Bazel (Linux only)
+      # Builds Angular 14 and 16 using rules_angular + custom webpack plugin.
+      # The webpack plugin (BazelSandboxResolverPlugin) resolves packages
+      # from the .aspect_rules_js package store inside the sandbox.
+      # Skipped on Windows due to MAX_PATH issues with long @babel package names.
+      - name: "Build: Angular 14/16 (webpack, Bazel sandbox, Linux only)"
         if: runner.os != 'Windows'
         run: bazel build //apps/app-v14:build //apps/app-v16:build
 
-  # Summary job that requires all matrix jobs to pass
-  test-summary:
+  ci:
     needs: [test, bazel]
     runs-on: ubuntu-latest
     if: always()
+    name: CI Summary
     steps:
-      - name: Check test results
+      - name: Check results
         run: |
           if [ "${{ needs.test.result }}" != "success" ]; then
             echo "pnpm tests failed"
