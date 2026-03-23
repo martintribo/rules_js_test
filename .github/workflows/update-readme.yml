@@ -9,6 +9,7 @@ on:
       - 'apps/**/package.json'
       - 'apps/**/src/**'
       - 'scripts/generate-diff-report.sh'
+      - 'MODULE.bazel'
 
 jobs:
   update-readme:

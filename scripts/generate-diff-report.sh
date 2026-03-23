@@ -153,3 +153,75 @@ done
 if [ "$found_any" = false ]; then
   echo "_No baseline directories found in apps/._"
 fi
+
+# --- rules_js fork diff ---
+# Parse git_override from MODULE.bazel to get fork remote and commit
+MODULE_BAZEL="$REPO_ROOT/MODULE.bazel"
+if grep -q 'module_name = "aspect_rules_js"' "$MODULE_BAZEL" 2>/dev/null; then
+  fork_remote=$(grep -A5 'module_name = "aspect_rules_js"' "$MODULE_BAZEL" | grep 'remote' | sed 's/.*"\(.*\)".*/\1/')
+  fork_commit=$(grep -A5 'module_name = "aspect_rules_js"' "$MODULE_BAZEL" | grep 'commit' | sed 's/.*"\(.*\)".*/\1/')
+
+  if [ -n "$fork_remote" ] && [ -n "$fork_commit" ]; then
+    echo ""
+    echo "---"
+    echo ""
+    echo "## rules_js fork changes"
+    echo ""
+    echo "This project uses a fork of [\`aspect_rules_js\`](https://github.com/aspect-build/rules_js)"
+    echo "at [\`${fork_commit:0:12}\`]($fork_remote/commit/$fork_commit)."
+    echo ""
+    echo "Changes compared to upstream:"
+    echo ""
+
+    # Clone fork into temp dir (shallow, just enough to diff)
+    tmpdir=$(mktemp -d)
+    trap "rm -rf $tmpdir" EXIT
+
+    if git clone --quiet --filter=blob:none "$fork_remote" "$tmpdir/rules_js" 2>/dev/null; then
+      cd "$tmpdir/rules_js"
+
+      # Fetch upstream to compare against
+      git remote add upstream https://github.com/aspect-build/rules_js.git 2>/dev/null || true
+      git fetch --quiet --filter=blob:none upstream main 2>/dev/null
+
+      # Find merge base between fork commit and upstream main
+      if git cat-file -e "$fork_commit" 2>/dev/null; then
+        merge_base=$(git merge-base "$fork_commit" upstream/main 2>/dev/null || echo "")
+        if [ -n "$merge_base" ]; then
+          # List changed files
+          changed_files=$(git diff --name-only "$merge_base" "$fork_commit" 2>/dev/null)
+          if [ -n "$changed_files" ]; then
+            echo "### Changed files"
+            echo ""
+            while IFS= read -r cf; do
+              echo "- \`$cf\`"
+            done <<< "$changed_files"
+            echo ""
+
+            # Show the actual diff
+            echo "### Diff"
+            echo ""
+            echo '```diff'
+            git diff "$merge_base" "$fork_commit" 2>/dev/null || true
+            echo '```'
+            echo ""
+          else
+            echo "_No differences found between fork and upstream._"
+            echo ""
+          fi
+        else
+          echo "_Could not determine merge base with upstream._"
+          echo ""
+        fi
+      else
+        echo "_Fork commit \`$fork_commit\` not found. The fork branch may not be pushed yet._"
+        echo ""
+      fi
+
+      cd "$REPO_ROOT"
+    else
+      echo "_Could not clone fork repository._"
+      echo ""
+    fi
+  fi
+fi
