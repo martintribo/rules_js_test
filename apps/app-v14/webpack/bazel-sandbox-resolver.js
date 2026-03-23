@@ -3,12 +3,10 @@
  *
  * This plugin helps webpack resolve modules inside Bazel's sandbox.
  * When running in linux-sandbox, symlinks in node_modules may point to
- * absolute paths that don't exist in the sandbox namespace.
+ * absolute paths that don't exist in the sandbox namespace. This plugin
+ * intercepts failed resolutions and finds modules in the package store.
  *
- * Strategy:
- * 1. Let webpack try normal resolution first
- * 2. If resolution fails, try finding the package in the Bazel package store
- * 3. Remap any escaped paths back into the sandbox
+ * Similar to the esbuild plugin at apps/app-latest/esbuild/bazel-sandbox-plugin.js
  */
 
 const path = require('path');
@@ -33,7 +31,6 @@ function detectSandboxInfo() {
   const cwd = process.cwd();
 
   // Pattern: .../sandbox/linux-sandbox/<id>/execroot/_main/...
-  // or .../sandbox/processwrapper-sandbox/<id>/execroot/_main/...
   const sandboxPattern = /^(.*\/sandbox\/(?:linux|processwrapper)-sandbox\/\d+)(\/execroot\/[^/]+)(\/.*)?$/;
   const match = cwd.match(sandboxPattern);
 
@@ -70,96 +67,62 @@ function detectSandboxInfo() {
 }
 
 /**
- * Find all versions of a package in the package store
+ * Find a package in the .aspect_rules_js package store
  */
-function findAllVersionsInPackageStore(moduleName, sandboxInfo) {
+function findInPackageStore(moduleName, sandboxInfo) {
   const binDir = process.env.BAZEL_BINDIR || 'bazel-out/k8-fastbuild/bin';
   const packageStorePath = path.join(sandboxInfo.sandboxExecroot, binDir, 'node_modules/.aspect_rules_js');
 
+  debug('Looking for', moduleName, 'in package store:', packageStorePath);
+
   if (!fs.existsSync(packageStorePath)) {
-    return [];
-  }
-
-  try {
-    const entries = fs.readdirSync(packageStorePath);
-    const isScoped = moduleName.startsWith('@');
-    const searchName = isScoped ? moduleName.replace('/', '+') : moduleName;
-
-    // Find all matching directories (e.g., lodash@4.17.21, lodash@4.17.15)
-    const matches = entries
-      .filter(entry => entry.startsWith(searchName + '@'))
-      .map(matchDir => {
-        const fullPath = path.join(packageStorePath, matchDir, 'node_modules', moduleName);
-        if (fs.existsSync(fullPath)) {
-          // Extract version from directory name
-          const versionMatch = matchDir.match(/@([^@_]+)(?:_|$)/);
-          return {
-            path: fullPath,
-            version: versionMatch ? versionMatch[1] : null,
-            dir: matchDir,
-          };
-        }
-        // For scoped packages
-        const scopedPath = path.join(packageStorePath, matchDir, 'node_modules', ...moduleName.split('/'));
-        if (fs.existsSync(scopedPath)) {
-          const versionMatch = matchDir.match(/@([^@_]+)(?:_|$)/);
-          return {
-            path: scopedPath,
-            version: versionMatch ? versionMatch[1] : null,
-            dir: matchDir,
-          };
-        }
-        return null;
-      })
-      .filter(Boolean);
-
-    return matches;
-  } catch (e) {
-    debug('Error searching package store:', e.message);
-    return [];
-  }
-}
-
-/**
- * Resolve the main entry point of a package
- */
-function resolvePackageMain(packagePath) {
-  const pkgJsonPath = path.join(packagePath, 'package.json');
-
-  if (!fs.existsSync(pkgJsonPath)) {
-    const indexPath = path.join(packagePath, 'index.js');
-    if (fs.existsSync(indexPath)) {
-      return indexPath;
-    }
+    debug('Package store does not exist:', packageStorePath);
     return null;
   }
 
   try {
-    const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+    const entries = fs.readdirSync(packageStorePath);
 
-    const entryPoints = [
-      pkgJson.module,
-      pkgJson.main,
-      pkgJson.exports?.['.']?.import,
-      pkgJson.exports?.['.']?.require,
-      pkgJson.exports?.['.']?.default,
-      typeof pkgJson.exports?.['.'] === 'string' ? pkgJson.exports['.'] : null,
-      'index.js',
-    ];
+    // Handle scoped packages like @types/lodash
+    const isScoped = moduleName.startsWith('@');
+    let searchName;
 
-    for (const entry of entryPoints) {
-      if (typeof entry === 'string') {
-        const entryPath = path.join(packagePath, entry);
-        if (fs.existsSync(entryPath)) {
-          return entryPath;
-        }
-        if (!entry.endsWith('.js') && fs.existsSync(entryPath + '.js')) {
-          return entryPath + '.js';
-        }
+    if (isScoped) {
+      // @types/lodash -> @types+lodash
+      // @myorg/lib-a -> @myorg+lib-a
+      searchName = moduleName.replace('/', '+');
+    } else {
+      searchName = moduleName;
+    }
+
+    // Find matching directories (e.g., lodash@4.17.21, rxjs@7.8.2)
+    const matches = entries.filter(entry => {
+      // Match package@version pattern
+      return entry.startsWith(searchName + '@');
+    });
+
+    debug('Found matches for', moduleName, ':', matches);
+
+    if (matches.length > 0) {
+      // Use the first match (or we could be smarter about version selection)
+      const matchDir = matches[0];
+      const fullPath = path.join(packageStorePath, matchDir, 'node_modules', moduleName);
+
+      if (fs.existsSync(fullPath)) {
+        debug('Found package at:', fullPath);
+        return fullPath;
+      }
+
+      // For scoped packages, the structure is different
+      // @types+lodash@4.17.24 -> node_modules/@types/lodash
+      const scopedPath = path.join(packageStorePath, matchDir, 'node_modules', ...moduleName.split('/'));
+      if (fs.existsSync(scopedPath)) {
+        debug('Found scoped package at:', scopedPath);
+        return scopedPath;
       }
     }
   } catch (e) {
-    debug('Error reading package.json:', e.message);
+    debug('Error searching package store:', e.message);
   }
 
   return null;
@@ -169,7 +132,6 @@ function resolvePackageMain(packagePath) {
  * Check if a path is within the sandbox execroot
  */
 function isInSandbox(filepath, sandboxInfo) {
-  if (!filepath) return true;
   const resolved = path.resolve(filepath);
   const normalizedExecroot = path.resolve(sandboxInfo.sandboxExecroot);
   return resolved.startsWith(normalizedExecroot + path.sep) || resolved === normalizedExecroot;
@@ -185,17 +147,19 @@ function remapToSandbox(escapedPath, sandboxInfo) {
   if (match) {
     const relativePath = match[2] || '';
     const remappedPath = sandboxInfo.sandboxExecroot + relativePath;
+
     if (fs.existsSync(remappedPath)) {
       return remappedPath;
     }
   }
 
+  // Try extracting the relative path from bazel-out onwards
   const bazelOutIdx = escapedPath.indexOf('/bazel-out/');
   if (bazelOutIdx >= 0) {
     const relativePath = escapedPath.substring(bazelOutIdx);
-    const remappedPath = sandboxInfo.sandboxExecroot + relativePath;
-    if (fs.existsSync(remappedPath)) {
-      return remappedPath;
+    const alternativePath = sandboxInfo.sandboxExecroot + relativePath;
+    if (fs.existsSync(alternativePath)) {
+      return alternativePath;
     }
   }
 
@@ -204,6 +168,7 @@ function remapToSandbox(escapedPath, sandboxInfo) {
 
 /**
  * Extract the package name from a request
+ * e.g., "lodash/get" -> "lodash", "@myorg/lib-a/utils" -> "@myorg/lib-a"
  */
 function getPackageName(request) {
   if (request.startsWith('@')) {
@@ -218,6 +183,7 @@ function getPackageName(request) {
 
 /**
  * Get the subpath within a package
+ * e.g., "lodash/get" -> "get", "@myorg/lib-a/utils" -> "utils"
  */
 function getSubpath(request) {
   const packageName = getPackageName(request);
@@ -234,120 +200,95 @@ class BazelSandboxResolverPlugin {
   constructor() {
     this.sandboxInfo = detectSandboxInfo();
     this.name = 'BazelSandboxResolverPlugin';
-    // Track what's currently being resolved to prevent infinite loops
-    this.resolving = new Set();
   }
 
   apply(resolver) {
     const sandboxInfo = this.sandboxInfo;
-    const resolving = this.resolving;
 
-    // Use the 'resolve' hook to try normal resolution first, then fallback
+    // Hook into the resolve process
     resolver.getHook('resolve').tapAsync(this.name, (request, resolveContext, callback) => {
+      // Skip if already processed
+      if (request.bazelSandboxProcessed) {
+        return callback();
+      }
+
       // Skip relative and absolute paths
       if (!request.request || request.request.startsWith('.') || request.request.startsWith('/')) {
         return callback();
       }
 
-      // Create a unique key for this resolution to detect recursion
-      const resolveKey = `${request.path || ''}:${request.request}`;
-
-      // Skip if we're already resolving this (prevent infinite loop)
-      if (resolving.has(resolveKey)) {
-        return callback();
-      }
-
-      // Mark as currently resolving
-      resolving.add(resolveKey);
-
-      // Try normal resolution first
-      const newRequest = Object.assign({}, request);
+      // Let the normal resolution try first
+      const newRequest = Object.assign({}, request, { bazelSandboxProcessed: true });
 
       resolver.doResolve(
-        resolver.getHook('parsedResolve'),
+        resolver.getHook('resolve'),
         newRequest,
         null,
         resolveContext,
         (err, result) => {
-          // Done resolving this key
-          resolving.delete(resolveKey);
-
-          // If resolution succeeded, return the result
+          // If resolution succeeded, check if the path escaped the sandbox
           if (!err && result && result.path) {
+            if (!isInSandbox(result.path, sandboxInfo)) {
+              debug('Path escaped sandbox:', result.path);
+
+              // Try to remap the path back into the sandbox
+              const remappedPath = remapToSandbox(result.path, sandboxInfo);
+              if (remappedPath) {
+                debug('Remapped to:', remappedPath);
+                result.path = remappedPath;
+              }
+            }
             return callback(null, result);
           }
 
-          // Resolution failed - try to find in package store
-          const packageName = getPackageName(request.request);
-          const subpath = getSubpath(request.request);
+          // If resolution failed, try to find the module in the package store
+          if (err || !result) {
+            const packageName = getPackageName(request.request);
+            const subpath = getSubpath(request.request);
 
-          debug('Resolution failed for:', request.request, 'trying package store');
+            debug('Resolution failed for:', request.request, 'trying package store');
 
-          const versions = findAllVersionsInPackageStore(packageName, sandboxInfo);
-          if (versions.length === 0) {
-            // Couldn't find in package store either, return original error
-            return callback(err);
-          }
+            const packagePath = findInPackageStore(packageName, sandboxInfo);
 
-          // For now, use the first version found
-          // TODO: Could be smarter about version selection based on context
-          const packagePath = versions[0].path;
+            if (packagePath) {
+              let targetPath = packagePath;
+              if (subpath) {
+                targetPath = path.join(packagePath, subpath);
+              }
 
-          let targetPath;
-          if (subpath) {
-            targetPath = path.join(packagePath, subpath);
-            const extensions = ['', '.js', '.mjs', '.json'];
-            for (const ext of extensions) {
-              const tryPath = targetPath + ext;
-              if (fs.existsSync(tryPath) && fs.statSync(tryPath).isFile()) {
-                info('Resolved (fallback)', request.request, '->', tryPath);
+              // Try to resolve to an actual file
+              const extensions = ['', '.js', '.json', '.node', '/index.js', '/index.json'];
+              for (const ext of extensions) {
+                const tryPath = targetPath + ext;
+                if (fs.existsSync(tryPath)) {
+                  const stat = fs.statSync(tryPath);
+                  if (stat.isFile()) {
+                    info('Resolved', request.request, '->', tryPath);
+                    return callback(null, {
+                      path: tryPath,
+                      request: request.request,
+                    });
+                  }
+                }
+              }
+
+              // Return the package directory and let webpack figure out the entry
+              if (fs.existsSync(targetPath)) {
+                info('Resolved', request.request, '->', targetPath);
                 return callback(null, {
-                  ...request,
-                  path: tryPath,
+                  path: targetPath,
+                  request: request.request,
                 });
               }
             }
-            // Try index.js
-            const indexPath = path.join(targetPath, 'index.js');
-            if (fs.existsSync(indexPath)) {
-              info('Resolved (fallback)', request.request, '->', indexPath);
-              return callback(null, {
-                ...request,
-                path: indexPath,
-              });
-            }
-          } else {
-            targetPath = resolvePackageMain(packagePath);
-            if (targetPath) {
-              info('Resolved (fallback)', request.request, '->', targetPath);
-              return callback(null, {
-                ...request,
-                path: targetPath,
-              });
-            }
+
+            // Couldn't help, return original error
+            return callback(err);
           }
 
-          // Still couldn't resolve, return original error
-          return callback(err);
+          return callback(null, result);
         }
       );
-    });
-
-    // Also intercept the result to fix escaped paths
-    resolver.getHook('result').tapAsync(this.name, (request, resolveContext, callback) => {
-      if (!request.path || isInSandbox(request.path, sandboxInfo)) {
-        return callback(null, request);
-      }
-
-      debug('Result path escaped sandbox:', request.path);
-
-      const remappedPath = remapToSandbox(request.path, sandboxInfo);
-      if (remappedPath) {
-        info('Remapped', request.path, '->', remappedPath);
-        request.path = remappedPath;
-      }
-
-      callback(null, request);
     });
   }
 }
