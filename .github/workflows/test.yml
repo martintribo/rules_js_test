@@ -240,13 +240,15 @@ jobs:
             echo "| **${name}** | ${desc} | ${pu} | ${pw} | ${bu} | ${bw} |"
           }
 
+          REPO="https://github.com/${{ github.repository }}/blob/${{ github.sha }}"
+
           {
-            row "pnpm structure" "Verify pnpm isolated linker, injected deps, and lockfile correctness" "structure" ""
-            row "Build libraries" "Compile lib-a, lib-b, lib-c with TypeScript" "build_libs" "build_libs"
-            row "Runtime isolation" "Each package loads its own lodash version, rxjs peer deps shared" "runtime" ""
-            row "Angular 19" "Build Angular 19 app with esbuild application builder" "build_latest" "build_latest"
-            row "Angular 16" "Build Angular 16 app with webpack browser builder" "build_v16" "build_v16"
-            row "Angular 14" "Build Angular 14 app with webpack browser builder (NgModule)" "build_v14" "build_v14"
+            row "pnpm structure" "[Verify pnpm isolated linker, injected deps, and lockfile](${REPO}/scripts/verify-pnpm-structure.js)" "structure" ""
+            row "Build libraries" "Compile [lib-a](${REPO}/libs/lib-a), [lib-b](${REPO}/libs/lib-b), [lib-c](${REPO}/libs/lib-c) with TypeScript" "build_libs" "build_libs"
+            row "Runtime isolation" "[Each package loads its own lodash version, rxjs peer deps shared](${REPO}/scripts/verify-runtime-versions.js)" "runtime" "runtime"
+            row "Angular 19" "Build [app-latest](${REPO}/apps/app-latest) with esbuild application builder" "build_latest" "build_latest"
+            row "Angular 16" "Build [app-v16](${REPO}/apps/app-v16) with webpack browser builder" "build_v16" "build_v16"
+            row "Angular 14" "Build [app-v14](${REPO}/apps/app-v14) with webpack browser builder (NgModule)" "build_v14" "build_v14"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check results
