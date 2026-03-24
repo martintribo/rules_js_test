@@ -272,13 +272,34 @@ class BazelSandboxResolverPlugin {
                 }
               }
 
-              // Return the package directory and let webpack figure out the entry
-              if (fs.existsSync(targetPath)) {
-                info('Resolved', request.request, '->', targetPath);
-                return callback(null, {
-                  path: targetPath,
-                  request: request.request,
-                });
+              // If targetPath is a directory, resolve via package.json main/module fields
+              if (fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory()) {
+                const pkgJsonPath = path.join(targetPath, 'package.json');
+                if (fs.existsSync(pkgJsonPath)) {
+                  try {
+                    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+                    const entry = pkg.module || pkg.main || 'index.js';
+                    const entryPath = path.join(targetPath, entry);
+                    if (fs.existsSync(entryPath) && fs.statSync(entryPath).isFile()) {
+                      info('Resolved', request.request, '->', entryPath);
+                      return callback(null, {
+                        path: entryPath,
+                        request: request.request,
+                      });
+                    }
+                  } catch (e) {
+                    debug('Error reading package.json:', e.message);
+                  }
+                }
+                // Try index.js as last resort
+                const indexPath = path.join(targetPath, 'index.js');
+                if (fs.existsSync(indexPath)) {
+                  info('Resolved', request.request, '->', indexPath);
+                  return callback(null, {
+                    path: indexPath,
+                    request: request.request,
+                  });
+                }
               }
             }
 
