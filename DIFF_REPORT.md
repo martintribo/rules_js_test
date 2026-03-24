@@ -17,49 +17,6 @@ the Bazel-integrated versions in this repository.
 - `esbuild/bazel-sandbox-plugin.js`
 - `ng_config_no_symlinks.bzl`
 
-### Modified files
-
-#### `angular.json`
-
-```diff
---- baseline/angular.json
-+++ bazel/angular.json
-@@ -10,7 +10,7 @@
-       "prefix": "app",
-       "architect": {
-         "build": {
--          "builder": "@angular/build:application",
-+          "builder": "@angular-builders/custom-esbuild:application",
-           "options": {
-             "outputPath": "dist/app-latest",
-             "index": "src/index.html",
-@@ -24,7 +24,8 @@
-               }
-             ],
-             "styles": ["src/styles.css"],
--            "scripts": []
-+            "scripts": [],
-+            "plugins": ["./esbuild/bazel-sandbox-plugin.js"]
-           },
-           "configurations": {
-             "production": {
-```
-
-#### `package.json`
-
-```diff
---- baseline/package.json
-+++ bazel/package.json
-@@ -27,6 +27,7 @@
-     "@angular/build": "^19.0.0",
-     "@angular/cli": "^19.0.0",
-     "@angular/compiler-cli": "^19.0.0",
-+    "@angular-builders/custom-esbuild": "^19.0.0",
-     "@types/lodash": "^4.17.0",
-     "typescript": "~5.6.0"
-   }
-```
-
 ---
 
 ## app-v14
@@ -69,51 +26,6 @@ the Bazel-integrated versions in this repository.
 - `webpack/bazel-sandbox-resolver.js`
 - `webpack/webpack.config.js`
 
-### Modified files
-
-#### `angular.json`
-
-```diff
---- baseline/angular.json
-+++ bazel/angular.json
-@@ -10,7 +10,7 @@
-       "prefix": "app",
-       "architect": {
-         "build": {
--          "builder": "@angular-devkit/build-angular:browser",
-+          "builder": "@angular-builders/custom-webpack:browser",
-           "options": {
-             "outputPath": "dist/app-v14",
-             "index": "src/index.html",
-@@ -19,7 +19,10 @@
-             "tsConfig": "tsconfig.app.json",
-             "assets": ["src/assets"],
-             "styles": ["src/styles.css"],
--            "scripts": []
-+            "scripts": [],
-+            "customWebpackConfig": {
-+              "path": "./webpack/webpack.config.js"
-+            }
-           },
-           "configurations": {
-             "production": {
-```
-
-#### `package.json`
-
-```diff
---- baseline/package.json
-+++ bazel/package.json
-@@ -24,6 +24,7 @@
-     "zone.js": "~0.11.8"
-   },
-   "devDependencies": {
-+    "@angular-builders/custom-webpack": "^14.1.0",
-     "@angular-devkit/build-angular": "^14.2.0",
-     "@angular/cli": "^14.2.0",
-     "@angular/compiler-cli": "^14.3.0",
-```
-
 ---
 
 ## app-v16
@@ -122,51 +34,6 @@ the Bazel-integrated versions in this repository.
 
 - `webpack/bazel-sandbox-resolver.js`
 - `webpack/webpack.config.js`
-
-### Modified files
-
-#### `angular.json`
-
-```diff
---- baseline/angular.json
-+++ bazel/angular.json
-@@ -10,7 +10,7 @@
-       "prefix": "app",
-       "architect": {
-         "build": {
--          "builder": "@angular-devkit/build-angular:browser",
-+          "builder": "@angular-builders/custom-webpack:browser",
-           "options": {
-             "outputPath": "dist/app-v16",
-             "index": "src/index.html",
-@@ -19,7 +19,10 @@
-             "tsConfig": "tsconfig.app.json",
-             "assets": ["src/assets"],
-             "styles": ["src/styles.css"],
--            "scripts": []
-+            "scripts": [],
-+            "customWebpackConfig": {
-+              "path": "./webpack/webpack.config.js"
-+            }
-           },
-           "configurations": {
-             "production": {
-```
-
-#### `package.json`
-
-```diff
---- baseline/package.json
-+++ bazel/package.json
-@@ -24,6 +24,7 @@
-     "zone.js": "~0.13.0"
-   },
-   "devDependencies": {
-+    "@angular-builders/custom-webpack": "^16.0.0",
-     "@angular-devkit/build-angular": "^16.2.0",
-     "@angular/cli": "^16.2.0",
-     "@angular/compiler-cli": "^16.2.0",
-```
 
 
 ---
@@ -213,6 +80,6 @@ index 5d0234cb..2a95f511 100644
 ```
 
 
-_diff-hash: 13b911c86d928982_
+_diff-hash: 9c191c69277f027d_
 
 <!-- BASELINE-DIFF-END -->
