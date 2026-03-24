@@ -67,8 +67,8 @@ jobs:
         if: always()
         shell: bash
         run: |
-          mkdir -p /tmp/results
-          cat > "/tmp/results/pnpm_${{ matrix.os }}_node${{ matrix.node-version }}.json" << RESULTS
+          mkdir -p "$RUNNER_TEMP/results"
+          cat > "$RUNNER_TEMP/results/pnpm_${{ matrix.os }}_node${{ matrix.node-version }}.json" << RESULTS
           {
             "os": "${{ matrix.os }}",
             "node": "${{ matrix.node-version }}",
@@ -86,7 +86,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: results-pnpm-${{ matrix.os }}-node${{ matrix.node-version }}
-          path: /tmp/results/
+          path: ${{ runner.temp }}/results/
 
   bazel:
     strategy:
@@ -145,8 +145,8 @@ jobs:
         if: always()
         shell: bash
         run: |
-          mkdir -p /tmp/results
-          cat > "/tmp/results/bazel_${{ matrix.os }}.json" << RESULTS
+          mkdir -p "$RUNNER_TEMP/results"
+          cat > "$RUNNER_TEMP/results/bazel_${{ matrix.os }}.json" << RESULTS
           {
             "os": "${{ matrix.os }}",
             "build_libs": "${{ steps.build_libs.outcome }}",
@@ -162,7 +162,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: results-bazel-${{ matrix.os }}
-          path: /tmp/results/
+          path: ${{ runner.temp }}/results/
 
   summary:
     needs: [test, bazel]
