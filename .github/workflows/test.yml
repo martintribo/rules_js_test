@@ -121,6 +121,11 @@ jobs:
         if: always()
         run: bazel build //libs/lib-a:pkg //libs/lib-b:pkg //libs/lib-c:pkg
 
+      - name: "Test: runtime version isolation"
+        id: runtime
+        if: always() && steps.build_libs.outcome == 'success'
+        run: bazel test //:test_runtime
+
       - name: "Build: Angular 19 (esbuild, Bazel sandbox)"
         id: build_latest
         if: always() && steps.build_libs.outcome == 'success'
@@ -145,6 +150,7 @@ jobs:
           {
             "os": "${{ matrix.os }}",
             "build_libs": "${{ steps.build_libs.outcome }}",
+            "runtime": "${{ steps.runtime.outcome }}",
             "build_latest": "${{ steps.build_latest.outcome }}",
             "build_v16": "${{ steps.build_v16.outcome }}",
             "build_v14": "${{ steps.build_v14.outcome }}"
@@ -206,7 +212,7 @@ jobs:
           for f in results/results-bazel-*/bazel_*.json; do
             [ -f "$f" ] || continue
             os=$(get "$f" os)
-            for step in build_libs build_latest build_v16 build_v14; do
+            for step in build_libs runtime build_latest build_v16 build_v14; do
               B["${os}_${step}"]=$(get "$f" "$step")
             done
           done
