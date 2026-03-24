@@ -15,13 +15,11 @@ ng_application(
         [
             "src/**/*",
             "public/**/*",
-            "esbuild/**/*",
         ],
         exclude = ["**/*.spec.ts"],
     ),
     args = ["--configuration=development"],
     deps = [
-        ":node_modules/@angular-builders/custom-esbuild",
         ":node_modules/lodash",
         ":node_modules/@types/lodash",
         ":node_modules/zone.js",

@@ -17,15 +17,11 @@ ng_application(
     ng_config = ":ng_config",
     project_name = "app-v14",
     srcs = glob(
-        [
-            "src/**/*",
-            "webpack/**/*",
-        ],
+        ["src/**/*"],
         exclude = ["**/*.spec.ts"],
     ),
     args = ["--configuration=development"],
     deps = [
-        ":node_modules/@angular-builders/custom-webpack",
         ":node_modules/@angular-devkit/build-angular",
         ":node_modules/lodash",
         ":node_modules/@types/lodash",

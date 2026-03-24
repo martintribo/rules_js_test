@@ -10,7 +10,7 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-builders/custom-webpack:browser",
+          "builder": "@angular-devkit/build-angular:browser",
           "options": {
             "outputPath": "dist/app-v16",
             "index": "src/index.html",
@@ -19,10 +19,7 @@
             "tsConfig": "tsconfig.app.json",
             "assets": ["src/assets"],
             "styles": ["src/styles.css"],
-            "scripts": [],
-            "customWebpackConfig": {
-              "path": "./webpack/webpack.config.js"
-            }
+            "scripts": []
           },
           "configurations": {
             "production": {
