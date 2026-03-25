@@ -63,6 +63,16 @@ jobs:
         if: always() && steps.build_libs.outcome == 'success'
         run: pnpm build:app-v14
 
+      - name: "Build: Angular 20 (esbuild builder)"
+        id: build_v20
+        if: always() && steps.build_libs.outcome == 'success'
+        run: pnpm build:app-v20
+
+      - name: "Test: Angular 20 Vitest (version isolation)"
+        id: test_v20
+        if: always() && steps.build_libs.outcome == 'success'
+        run: pnpm test:app-v20
+
       - name: Save results
         if: always()
         shell: bash
@@ -77,7 +87,9 @@ jobs:
             "runtime": "${{ steps.runtime.outcome }}",
             "build_latest": "${{ steps.build_latest.outcome }}",
             "build_v16": "${{ steps.build_v16.outcome }}",
-            "build_v14": "${{ steps.build_v14.outcome }}"
+            "build_v14": "${{ steps.build_v14.outcome }}",
+            "build_v20": "${{ steps.build_v20.outcome }}",
+            "test_v20": "${{ steps.test_v20.outcome }}"
           }
           RESULTS
 
@@ -146,6 +158,18 @@ jobs:
         shell: bash
         run: bazel build //apps/app-v14:build
 
+      - name: "Build: Angular 20 (esbuild, Bazel sandbox)"
+        id: build_v20
+        if: always() && steps.build_libs.outcome == 'success'
+        shell: bash
+        run: bazel build //apps/app-v20:build
+
+      - name: "Test: Angular 20 Vitest (version isolation, Bazel sandbox)"
+        id: test_v20
+        if: always() && steps.build_libs.outcome == 'success'
+        shell: bash
+        run: bazel test //apps/app-v20:test
+
       - name: Save results
         if: always()
         shell: bash
@@ -158,7 +182,9 @@ jobs:
             "runtime": "${{ steps.runtime.outcome }}",
             "build_latest": "${{ steps.build_latest.outcome }}",
             "build_v16": "${{ steps.build_v16.outcome }}",
-            "build_v14": "${{ steps.build_v14.outcome }}"
+            "build_v14": "${{ steps.build_v14.outcome }}",
+            "build_v20": "${{ steps.build_v20.outcome }}",
+            "test_v20": "${{ steps.test_v20.outcome }}"
           }
           RESULTS
 
@@ -207,7 +233,7 @@ jobs:
             os=$(get "$f" os)
             node=$(get "$f" node)
             k="${os}_${node}"
-            for step in structure build_libs runtime build_latest build_v16 build_v14; do
+            for step in structure build_libs runtime build_latest build_v16 build_v14 build_v20 test_v20; do
               P["${k}_${step}"]=$(get "$f" "$step")
             done
           done
@@ -217,7 +243,7 @@ jobs:
           for f in results/results-bazel-*/bazel_*.json; do
             [ -f "$f" ] || continue
             os=$(get "$f" os)
-            for step in build_libs runtime build_latest build_v16 build_v14; do
+            for step in build_libs runtime build_latest build_v16 build_v14 build_v20 test_v20; do
               B["${os}_${step}"]=$(get "$f" "$step")
             done
           done
@@ -254,6 +280,8 @@ jobs:
             row "Angular 19" "Build [app-latest](${REPO}/apps/app-latest) with esbuild application builder" "build_latest" "build_latest"
             row "Angular 16" "Build [app-v16](${REPO}/apps/app-v16) with webpack browser builder" "build_v16" "build_v16"
             row "Angular 14" "Build [app-v14](${REPO}/apps/app-v14) with webpack browser builder (NgModule)" "build_v14" "build_v14"
+            row "Angular 20" "Build [app-v20](${REPO}/apps/app-v20) with esbuild application builder" "build_v20" "build_v20"
+            row "Angular 20 Vitest" "[Lodash version isolation, rxjs peer dep sharing](${REPO}/apps/app-v20/src/app/app.component.spec.ts)" "test_v20" "test_v20"
             echo ""
             echo "**Legend:** ✅ Pass · ❌ Fail · ⏭️ Skipped · 🚫 Cancelled · ➖ N/A"
           } >> "$GITHUB_STEP_SUMMARY"

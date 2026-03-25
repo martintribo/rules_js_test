@@ -12,7 +12,9 @@
     "build:app-latest": "pnpm --filter @myorg/app-latest exec ng build --configuration=development",
     "build:app-v16": "pnpm --filter @myorg/app-v16 exec ng build --configuration=development",
     "build:app-v14": "pnpm --filter @myorg/app-v14 exec ng build --configuration=development",
-    "build:apps": "pnpm run build:app-latest && pnpm run build:app-v16 && pnpm run build:app-v14",
+    "build:app-v20": "pnpm --filter @myorg/app-v20 exec ng build --configuration=development",
+    "test:app-v20": "pnpm --filter @myorg/app-v20 exec node run-vitest.js",
+    "build:apps": "pnpm run build:app-latest && pnpm run build:app-v16 && pnpm run build:app-v14 && pnpm run build:app-v20",
     "bazel:build": "bazel build //...",
     "bazel:test": "bazel test //..."
   },
