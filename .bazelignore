@@ -5,3 +5,4 @@ apps/app-v16/node_modules
 libs/lib-a/node_modules
 libs/lib-b/node_modules
 libs/lib-c/node_modules
+apps/app-v20/node_modules
