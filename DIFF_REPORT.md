@@ -25,6 +25,15 @@ the Bazel-integrated versions in this repository.
 ```diff
 --- baseline/angular.json
 +++ bazel/angular.json
+@@ -10,7 +10,7 @@
+       "prefix": "app",
+       "architect": {
+         "build": {
+-          "builder": "@angular/build:application",
++          "builder": "@angular-builders/custom-esbuild:application",
+           "options": {
+             "outputPath": "dist/app-latest",
+             "index": "src/index.html",
 @@ -24,7 +24,8 @@
                }
              ],
@@ -35,6 +44,21 @@ the Bazel-integrated versions in this repository.
            },
            "configurations": {
              "production": {
+```
+
+#### `package.json`
+
+```diff
+--- baseline/package.json
++++ bazel/package.json
+@@ -27,6 +27,7 @@
+     "@angular/build": "^19.0.0",
+     "@angular/cli": "^19.0.0",
+     "@angular/compiler-cli": "^19.0.0",
++    "@angular-builders/custom-esbuild": "^19.0.0",
+     "@types/lodash": "^4.17.0",
+     "typescript": "~5.6.0"
+   }
 ```
 
 ---
@@ -1783,6 +1807,6 @@ index 00000000..b328fa5b
 ```
 
 
-_diff-hash: 91aaaf8069f436d2_
+_diff-hash: 750308db6ada495f_
 
 <!-- BASELINE-DIFF-END -->
