@@ -9,22 +9,23 @@ bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "aspect_rules_js", version = "3.0.3")
-git_override(
+archive_override(
     module_name = "aspect_rules_js",
-    remote = "https://github.com/martintribo/rules_js.git",
-    commit = "481ea3595a2dade591dd7e3dcf94ee1a782e435c",
+    urls = ["https://github.com/martintribo/rules_js/archive/refs/tags/v3.0.3-fork.1.tar.gz"],
+    strip_prefix = "rules_js-3.0.3-fork.1",
+    integrity = "sha256-DG4+KH3eOCUQ2HVOIPe1YOQQDSu0IhTs99/1DRojBtI=",
 )
 bazel_dep(name = "aspect_rules_ts", version = "3.8.6")
 bazel_dep(name = "rules_nodejs", version = "6.7.3")
 bazel_dep(name = "jq.bzl", version = "0.6.1")
 bazel_dep(name = "yq.bzl", version = "0.3.5")
 
-# rules_angular - using git_override for latest version
 bazel_dep(name = "rules_angular")
-git_override(
+archive_override(
     module_name = "rules_angular",
-    remote = "https://github.com/martintribo/rules_angular.git",
-    commit = "bd75cf28d22ba6b460377eedc89e6d6fd7fb592c",
+    urls = ["https://github.com/martintribo/rules_angular/archive/refs/tags/v0.0.1-fork.1.tar.gz"],
+    strip_prefix = "rules_angular-0.0.1-fork.1",
+    integrity = "sha256-4xwAMkh7m10qEF6KL6TyMPnt3ci5clOzKVSIP73IIFM=",
 )
 
 ####################
