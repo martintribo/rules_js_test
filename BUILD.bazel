@@ -2,40 +2,27 @@ load("@aspect_rules_js//js:defs.bzl", "js_library", "js_test")
 load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 
-# IMPORTANT: npm_link_all_packages MUST be called first to create the npm package targets
-# that workspace packages depend on
+# npm_link_all_packages handles both npm and workspace package linking
 npm_link_all_packages(name = "node_modules")
 
-# First-party packages - link to root node_modules for TypeScript resolution
-# Include deps to create node_modules symlinks inside the package store
+# Root-level links for workspace packages referenced by libs as //:node_modules/@myorg/*
 npm_link_package(
     name = "node_modules/@myorg/lib-b",
-    src = "//libs/lib-b:pkg",
+    src = "//libs/lib-b:pkginjected",
     package = "@myorg/lib-b",
-    deps = {
-        "//:.aspect_rules_js/node_modules/lodash@4.17.15": "lodash",
-        "//:.aspect_rules_js/node_modules/rxjs@7.8.2": "rxjs",
-        "//:.aspect_rules_js/node_modules/tslib@2.8.1": "tslib",
-    },
     visibility = ["//:__subpackages__"],
 )
 
 npm_link_package(
     name = "node_modules/@myorg/lib-a",
-    src = "//libs/lib-a:pkg",
+    src = "//libs/lib-a:pkginjected",
     package = "@myorg/lib-a",
-    deps = {
-        "//:.aspect_rules_js/node_modules/@myorg+lib-b@0.0.0": "@myorg/lib-b",
-        "//:.aspect_rules_js/node_modules/lodash@4.17.21": "lodash",
-        "//:.aspect_rules_js/node_modules/rxjs@7.8.2": "rxjs",
-        "//:.aspect_rules_js/node_modules/tslib@2.8.1": "tslib",
-    },
     visibility = ["//:__subpackages__"],
 )
 
 npm_link_package(
     name = "node_modules/@myorg/lib-c",
-    src = "//libs/lib-c:pkg",
+    src = "//libs/lib-c:pkginjected",
     package = "@myorg/lib-c",
     visibility = ["//:__subpackages__"],
 )
