@@ -41,13 +41,13 @@ the Bazel-integrated versions in this repository.
 ## rules_js fork changes
 
 This project uses a fork of [`aspect_rules_js`](https://github.com/aspect-build/rules_js)
-at [`5a5264ea7f11`](https://github.com/martintribo/rules_js.git/commit/5a5264ea7f119e8e3e7b7e17a5d37deb3d32b59f).
+at [`d901737c1f4f`](https://github.com/martintribo/rules_js.git/commit/d901737c1f4f9a7f94b4e08f14caf8e50ea34e3d).
 
 Changes compared to upstream:
 
-_Fork commit `5a5264ea7f119e8e3e7b7e17a5d37deb3d32b59f` not found. The fork branch may not be pushed yet._
+_Fork commit `d901737c1f4f9a7f94b4e08f14caf8e50ea34e3d` not found. The fork branch may not be pushed yet._
 
 
-_diff-hash: 71aea8a7050a6185_
+_diff-hash: adffc3edba77f88c_
 
 <!-- BASELINE-DIFF-END -->
