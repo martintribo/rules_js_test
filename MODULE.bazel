@@ -23,9 +23,9 @@ bazel_dep(name = "yq.bzl", version = "0.3.5")
 bazel_dep(name = "rules_angular")
 archive_override(
     module_name = "rules_angular",
-    urls = ["https://github.com/martintribo/rules_angular/archive/refs/tags/v0.0.1-fork.1.tar.gz"],
-    strip_prefix = "rules_angular-0.0.1-fork.1",
-    integrity = "sha256-4xwAMkh7m10qEF6KL6TyMPnt3ci5clOzKVSIP73IIFM=",
+    urls = ["https://github.com/martintribo/rules_angular/archive/refs/tags/v0.0.1-fork.2.tar.gz"],
+    strip_prefix = "rules_angular-0.0.1-fork.2",
+    integrity = "sha256-X95vr7DBXQcm5IGlObsBtBjQ3m9cEDCrvLyyfE59CHQ=",
 )
 
 ####################

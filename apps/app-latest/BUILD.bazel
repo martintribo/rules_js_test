@@ -15,7 +15,6 @@ ng_application(
         [
             "src/**/*",
             "public/**/*",
-            "esbuild/**/*",
         ],
         exclude = ["**/*.spec.ts"],
     ),
