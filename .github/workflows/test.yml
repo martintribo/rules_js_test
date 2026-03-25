@@ -120,7 +120,7 @@ jobs:
         id: build_libs
         if: always()
         shell: bash
-        run: bazel build //libs/lib-a:pkg //libs/lib-b:pkg //libs/lib-c:pkg
+        run: bazel build //libs/lib-a:pkginjected //libs/lib-b:pkginjected //libs/lib-c:pkginjected
 
       - name: "Test: runtime version isolation"
         id: runtime
