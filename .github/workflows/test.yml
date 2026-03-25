@@ -254,6 +254,8 @@ jobs:
             row "Angular 19" "Build [app-latest](${REPO}/apps/app-latest) with esbuild application builder" "build_latest" "build_latest"
             row "Angular 16" "Build [app-v16](${REPO}/apps/app-v16) with webpack browser builder" "build_v16" "build_v16"
             row "Angular 14" "Build [app-v14](${REPO}/apps/app-v14) with webpack browser builder (NgModule)" "build_v14" "build_v14"
+            echo ""
+            echo "**Legend:** ✅ Pass · ❌ Fail · ⏭️ Skipped · 🚫 Cancelled · ➖ N/A"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check results
