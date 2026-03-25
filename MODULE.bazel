@@ -11,7 +11,7 @@ bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "aspect_rules_js", version = "3.0.3")
 archive_override(
     module_name = "aspect_rules_js",
-    urls = ["https://github.com/martintribo/rules_js/archive/refs/tags/v3.0.3-fork.1.tar.gz"],
+    urls = ["https://github.com/martintribo/rules_js/releases/download/v3.0.3-fork.1/rules_js-3.0.3-fork.1.tar.gz"],
     strip_prefix = "rules_js-3.0.3-fork.1",
     integrity = "sha256-DG4+KH3eOCUQ2HVOIPe1YOQQDSu0IhTs99/1DRojBtI=",
 )
@@ -23,7 +23,7 @@ bazel_dep(name = "yq.bzl", version = "0.3.5")
 bazel_dep(name = "rules_angular")
 archive_override(
     module_name = "rules_angular",
-    urls = ["https://github.com/martintribo/rules_angular/archive/refs/tags/v0.0.1-fork.3.tar.gz"],
+    urls = ["https://github.com/martintribo/rules_angular/releases/download/v0.0.1-fork.3/rules_angular-0.0.1-fork.3.tar.gz"],
     strip_prefix = "rules_angular-0.0.1-fork.3",
     integrity = "sha256-7nunHXvK+tAgR7BKgfcIEIDJXUsJ5cl4y0wSztezAvE=",
 )
