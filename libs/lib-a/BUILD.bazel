@@ -22,11 +22,10 @@ ts_project(
         ":node_modules/lodash",
         ":node_modules/rxjs",
         ":node_modules/tslib",
-        "//:node_modules/@myorg/lib-b",
+        ":node_modules/@myorg/lib-b",
     ],
 )
 
-# Create workspace package targets for both injected and linked consumers
 workspace_package(
     name = "pkg",
     srcs = [
@@ -34,10 +33,10 @@ workspace_package(
         ":lib-a_ts",
     ],
     package = "@myorg/lib-a",
+    deps = [":node_modules"],
     visibility = ["//visibility:public"],
 )
 
-# Alias for convenience
 alias(
     name = "lib-a",
     actual = ":lib-a_ts",

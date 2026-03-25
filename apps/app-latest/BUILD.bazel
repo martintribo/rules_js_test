@@ -1,6 +1,6 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
-load("@rules_angular//src/architect:ng_config.bzl", "ng_config")  # Original jq-based version
+load("@rules_angular//src/architect:ng_config.bzl", "ng_config")
 
 npm_link_all_packages(name = "node_modules")
 
@@ -24,8 +24,7 @@ ng_application(
         ":node_modules/@types/lodash",
         ":node_modules/zone.js",
         ":node_modules/typescript",
-        "//:node_modules/@myorg/lib-a",
-        "//:node_modules/@myorg/lib-b",
+        ":node_modules/@myorg/lib-a",
     ],
     visibility = ["//visibility:public"],
 )

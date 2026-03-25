@@ -25,7 +25,6 @@ ts_project(
     ],
 )
 
-# Create workspace package targets for both injected and linked consumers
 workspace_package(
     name = "pkg",
     srcs = [
@@ -33,10 +32,10 @@ workspace_package(
         ":lib-b_ts",
     ],
     package = "@myorg/lib-b",
+    deps = [":node_modules"],
     visibility = ["//visibility:public"],
 )
 
-# Alias for convenience
 alias(
     name = "lib-b",
     actual = ":lib-b_ts",

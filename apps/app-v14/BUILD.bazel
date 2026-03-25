@@ -1,16 +1,11 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_config.bzl", "ng_config")
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
 
 npm_link_all_packages(name = "node_modules")
 
-# Create Angular config (transforms angular.json and tsconfig.json)
-ng_config(
-    name = "ng_config",
-)
+ng_config(name = "ng_config")
 
-# Build the Angular 14 application (webpack builder)
 ng_application(
     name = "build",
     node_modules = ":node_modules",
@@ -27,26 +22,7 @@ ng_application(
         ":node_modules/@types/lodash",
         ":node_modules/zone.js",
         ":node_modules/typescript",
-        "//:node_modules/@myorg/lib-a",
-        "//:node_modules/@myorg/lib-b",
-        # Include workspace package dependencies for sandbox resolution
-        "//:.aspect_rules_js/node_modules/lodash@4.17.15",
-        "//:.aspect_rules_js/node_modules/lodash@4.17.21",
-        "//:.aspect_rules_js/node_modules/rxjs@7.5.7",
-        "//:.aspect_rules_js/node_modules/rxjs@7.8.2",
-        "//:.aspect_rules_js/node_modules/tslib@2.8.1",
+        ":node_modules/@myorg/lib-a",
     ],
     visibility = ["//visibility:public"],
-)
-
-# Debug target to test fs patches
-js_binary(
-    name = "test_fs_patches",
-    entry_point = "test-fs-patches.js",
-    data = [
-        "//:node_modules/@myorg/lib-a",
-        "//:node_modules/@myorg/lib-b",
-        "//:.aspect_rules_js/node_modules/lodash@4.17.15",
-        "//:.aspect_rules_js/node_modules/lodash@4.17.21",
-    ],
 )
