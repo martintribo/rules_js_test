@@ -1,0 +1,36 @@
+{
+  "name": "@myorg/app-v20",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Angular 20 app with Vitest unit tests",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "test": "ng test"
+  },
+  "dependencies": {
+    "@angular/animations": "^20.0.0",
+    "@angular/common": "^20.0.0",
+    "@angular/compiler": "^20.0.0",
+    "@angular/core": "^20.0.0",
+    "@angular/forms": "^20.0.0",
+    "@angular/platform-browser": "^20.0.0",
+    "@angular/platform-browser-dynamic": "^20.0.0",
+    "@angular/router": "^20.0.0",
+    "@myorg/lib-a": "workspace:*",
+    "lodash": "4.17.20",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.6.0",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^20.0.0",
+    "@angular/cli": "^20.0.0",
+    "@angular/compiler-cli": "^20.0.0",
+    "@angular-builders/custom-esbuild": "^20.0.0",
+    "@types/lodash": "^4.17.0",
+    "typescript": "~5.8.0",
+    "vitest": "^3.0.0"
+  }
+}
