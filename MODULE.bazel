@@ -24,7 +24,7 @@ bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
     remote = "https://github.com/martintribo/rules_angular.git",
-    commit = "faf35ace1f01441a6097dd2b66788a89264590f2",
+    commit = "bd75cf28d22ba6b460377eedc89e6d6fd7fb592c",
 )
 
 ####################
