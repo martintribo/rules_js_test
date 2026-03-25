@@ -16,7 +16,7 @@ This repo uses forks of [rules_js](https://github.com/martintribo/rules_js) and 
 bazel_dep(name = "aspect_rules_js", version = "3.0.3")
 archive_override(
     module_name = "aspect_rules_js",
-    urls = ["https://github.com/martintribo/rules_js/archive/refs/tags/v3.0.3-fork.1.tar.gz"],
+    urls = ["https://github.com/martintribo/rules_js/releases/download/v3.0.3-fork.1/rules_js-3.0.3-fork.1.tar.gz"],
     strip_prefix = "rules_js-3.0.3-fork.1",
     integrity = "sha256-DG4+KH3eOCUQ2HVOIPe1YOQQDSu0IhTs999Q0aIwNtI=",
 )
@@ -24,9 +24,9 @@ archive_override(
 bazel_dep(name = "rules_angular")
 archive_override(
     module_name = "rules_angular",
-    urls = ["https://github.com/martintribo/rules_angular/archive/refs/tags/v0.0.1-fork.1.tar.gz"],
-    strip_prefix = "rules_angular-0.0.1-fork.1",
-    integrity = "sha256-4xwAMkh7m10qEF6KL6TyMPnt3ci5clOzKVSIP73IIFM=",
+    urls = ["https://github.com/martintribo/rules_angular/releases/download/v0.0.1-fork.3/rules_angular-0.0.1-fork.3.tar.gz"],
+    strip_prefix = "rules_angular-0.0.1-fork.3",
+    integrity = "sha256-7nunHXvK+tAgR7BKgfcIEIDJXUsJ5cl4y0wSztezAvE=",
 )
 ```
 
@@ -85,12 +85,16 @@ Angular 14-16 webpack apps work without any plugins.
 
 ### Releasing new fork versions
 
+GitHub's auto-generated source archives are non-deterministic, so we upload
+deterministic archives created with `git archive` as release assets.
+
 ```bash
 # After pushing changes to the fork:
-gh release create v3.0.3-fork.2 --repo martintribo/rules_js --target main
+cd rules_js
+git archive --format=tar.gz --prefix=rules_js-3.0.3-fork.2/ HEAD -o /tmp/rules_js-3.0.3-fork.2.tar.gz
+gh release create v3.0.3-fork.2 /tmp/rules_js-3.0.3-fork.2.tar.gz --repo martintribo/rules_js --target main
 
-# Get the new integrity hash:
-curl -sL https://github.com/martintribo/rules_js/archive/refs/tags/v3.0.3-fork.2.tar.gz | sha256sum
-# Convert hex to SRI: echo -n "<hex>" | xxd -r -p | base64
-# Update archive_override in consuming repos
+# Get the integrity hash:
+sha256sum /tmp/rules_js-3.0.3-fork.2.tar.gz | awk '{print $1}' | xxd -r -p | base64
+# Update archive_override urls and integrity in consuming repos
 ```
