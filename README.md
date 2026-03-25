@@ -6,3 +6,4 @@ Test repository for Angular apps with Bazel integration using [rules_js](https:/
 
 - [Test results](https://github.com/martintribo/rules_js_test/actions/workflows/test.yml) -- each run includes a summary report with test descriptions and results
 - [Baseline diffs](DIFF_REPORT.md) -- auto-generated diff showing changes needed for Bazel integration, including [rules_js fork](https://github.com/martintribo/rules_js) changes
+- [Workspace linking plan](WORKSPACE_LINKING_PLAN.md) -- proposed rules_js change to support pnpm injected vs symlinked workspace packages
