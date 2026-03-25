@@ -12,7 +12,7 @@ bazel_dep(name = "aspect_rules_js", version = "3.0.3")
 git_override(
     module_name = "aspect_rules_js",
     remote = "https://github.com/martintribo/rules_js.git",
-    commit = "154144298e22b4e1e82fb24b81f2f8e26e9f3570",
+    commit = "481ea359c6d5e457307302c43e93e8b36e9d23e3",
 )
 bazel_dep(name = "aspect_rules_ts", version = "3.8.6")
 bazel_dep(name = "rules_nodejs", version = "6.7.3")
