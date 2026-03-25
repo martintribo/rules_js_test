@@ -70,18 +70,16 @@ ng_application(
 
 ### Angular esbuild apps
 
-Angular apps using the esbuild application builder (Angular 19+) need a sandbox plugin because esbuild is a Go binary that bypasses Node's patched `fs`. Add `esbuild/bazel-sandbox.js` (see [example](apps/app-latest/esbuild/bazel-sandbox.js)) and reference it via `@angular-builders/custom-esbuild`:
+Angular apps using the esbuild application builder (Angular 19+) need `@angular-builders/custom-esbuild` in their `package.json` devDependencies. The `rules_angular` fork handles everything else automatically:
 
-```json
-{
-  "builder": "@angular-builders/custom-esbuild:application",
-  "options": {
-    "plugins": ["./esbuild/bazel-sandbox.js"]
-  }
-}
-```
+- `ng_config` swaps `@angular/build:application` to `@angular-builders/custom-esbuild:application` and injects a sandbox plugin
+- `ng_application` auto-includes `custom-esbuild` from the app's `node_modules`
 
-Angular 14-16 webpack apps work without any plugins.
+No changes needed to `angular.json` or `BUILD.bazel` — just use the vanilla `@angular/build:application` builder.
+
+Angular 14-16 webpack apps work without any additional dependencies.
+
+> **TODO:** Ideally `rules_angular` would auto-add `@angular-builders/custom-esbuild` to the app's Bazel node_modules via `npm_import`, so users don't need to add it to their `package.json` at all.
 
 ### Releasing new fork versions
 
