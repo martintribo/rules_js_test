@@ -41,45 +41,13 @@ the Bazel-integrated versions in this repository.
 ## rules_js fork changes
 
 This project uses a fork of [`aspect_rules_js`](https://github.com/aspect-build/rules_js)
-at [`9a1379b4d645`](https://github.com/martintribo/rules_js.git/commit/9a1379b4d64502ff277e2221ce4ce1105191e8e5).
+at [`5a5264ea7f11`](https://github.com/martintribo/rules_js.git/commit/5a5264ea7f119e8e3e7b7e17a5d37deb3d32b59f).
 
 Changes compared to upstream:
 
-### Changed files
-
-- `js/private/js_binary.sh.tpl`
-
-### Diff
-
-```diff
-diff --git a/js/private/js_binary.sh.tpl b/js/private/js_binary.sh.tpl
-index 5d0234cb..2a95f511 100644
---- a/js/private/js_binary.sh.tpl
-+++ b/js/private/js_binary.sh.tpl
-@@ -328,10 +328,16 @@ fi
- # Change directory to user specified package if set
- if [ "${JS_BINARY__CHDIR:-}" ]; then
-     logf_debug "changing directory to user specified package %s" "$JS_BINARY__CHDIR"
--    case "$JS_BINARY__CHDIR" in
--    external/*) cd "$(resolve_execroot_bin_path "$JS_BINARY__CHDIR")" ;;
--    *) cd "$JS_BINARY__CHDIR" ;;
--    esac
-+    # When using execroot entry point, chdir to bin path so node_modules resolution works
-+    # (node_modules is at bazel-out/.../bin/node_modules, not at the source root)
-+    if [ "${JS_BINARY__USE_EXECROOT_ENTRY_POINT:-}" ]; then
-+        cd "$(resolve_execroot_bin_path "$JS_BINARY__CHDIR")"
-+    else
-+        case "$JS_BINARY__CHDIR" in
-+        external/*) cd "$(resolve_execroot_bin_path "$JS_BINARY__CHDIR")" ;;
-+        *) cd "$JS_BINARY__CHDIR" ;;
-+        esac
-+    fi
- fi
- 
- # Gather node options
-```
+_Fork commit `5a5264ea7f119e8e3e7b7e17a5d37deb3d32b59f` not found. The fork branch may not be pushed yet._
 
 
-_diff-hash: 9c191c69277f027d_
+_diff-hash: 71aea8a7050a6185_
 
 <!-- BASELINE-DIFF-END -->
