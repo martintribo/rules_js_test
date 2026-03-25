@@ -15,7 +15,27 @@ the Bazel-integrated versions in this repository.
 ### Files only in Bazel version (added for Bazel integration)
 
 - `esbuild/bazel-sandbox-plugin.js`
+- `esbuild/bazel-sandbox.js`
 - `ng_config_no_symlinks.bzl`
+
+### Modified files
+
+#### `angular.json`
+
+```diff
+--- baseline/angular.json
++++ bazel/angular.json
+@@ -24,7 +24,8 @@
+               }
+             ],
+             "styles": ["src/styles.css"],
+-            "scripts": []
++            "scripts": [],
++            "plugins": ["./esbuild/bazel-sandbox.js"]
+           },
+           "configurations": {
+             "production": {
+```
 
 ---
 
@@ -1763,6 +1783,6 @@ index 00000000..b328fa5b
 ```
 
 
-_diff-hash: 9bfc2f429db97d3b_
+_diff-hash: 91aaaf8069f436d2_
 
 <!-- BASELINE-DIFF-END -->
