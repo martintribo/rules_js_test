@@ -13,7 +13,7 @@ archive_override(
     module_name = "aspect_rules_js",
     urls = ["https://github.com/martintribo/rules_js/releases/download/v3.0.3-fork.1/rules_js-3.0.3-fork.1.tar.gz"],
     strip_prefix = "rules_js-3.0.3-fork.1",
-    integrity = "sha256-DG4+KH3eOCUQ2HVOIPe1YOQQDSu0IhTs99/1DRojBtI=",
+    integrity = "sha256-DG4+KH3eOCUQ2HVOIPe1YOQQDSu0IhTs999Q0aIwNtI=",
 )
 bazel_dep(name = "aspect_rules_ts", version = "3.8.6")
 bazel_dep(name = "rules_nodejs", version = "6.7.3")
