@@ -6,3 +6,4 @@ libs/lib-a/node_modules
 libs/lib-b/node_modules
 libs/lib-c/node_modules
 apps/app-v20/node_modules
+apps/app-v21/node_modules
